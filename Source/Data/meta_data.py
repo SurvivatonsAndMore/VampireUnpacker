@@ -462,6 +462,7 @@ class MetaDataHandler(Emitter, Objectless):
 
     @classmethod
     def get_meta_dict_by_name_set_fullest(cls, name_set: set, is_multiprocess=True) -> dict[str, MetaData]:
+        name_set.discard(None)
         fullest_set = {}
 
         for name in name_set:

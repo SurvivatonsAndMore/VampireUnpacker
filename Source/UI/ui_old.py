@@ -24,7 +24,7 @@ from Source.Data.meta_data import MetaDataHandler, to_current_game_path
 from Source.Images import image_gen_vs_old, image_gen_vc, image_gen_vs
 from Source.Translations import language_vc
 from Source.Translations.language_utils import Lang
-from Source.Translations.language_vs import LangHandler, LangType
+from Source.Translations.language_vs import LangHandler, LangTypeVS
 from Source.UI.boxes_tkinter import CheckBoxes, ButtonsBox
 from Source.Utility.constants import I2_LANGUAGES, ROOT_FOLDER, IS_DEBUG, \
     DEFAULT_ANIMATION_FRAME_RATE, IMAGES_FOLDER, GENERATED, TILEMAPS, DATA_FOLDER, TRANSLATIONS_FOLDER, SPLIT, \
@@ -589,7 +589,7 @@ class UIOld(tk.Tk):
 
         _time = Timeit()
         print(f"Splitting I2Languages to separate categories. ({split_types[split_index]})")
-        lang_types = LangType.get_all_types()
+        lang_types = LangTypeVS.get_all_types()
         i = 0
 
         save_path = to_current_game_path(TRANSLATIONS_FOLDER) / GENERATED / SPLIT / split_folder_names[split_index]
@@ -669,12 +669,12 @@ class UIOld(tk.Tk):
             self.outer_progress_bar.change_label(f"Getting language file")
 
             lang = lang_module.LangHandler.get_lang_file(gen.langFileName).get_lang(Lang.EN) \
-                if gen.langFileName != LangType.NONE else None
+                if gen.langFileName != LangTypeVS.NONE else None
 
             if gen.assets_type == image_gen_vs_old.OldDataType.CHARACTER:
                 w_data = DataHandler.get_data(COMPOUND_DATA, data_vs.DataType.WEAPON).data()
-                lang_skins = lang_module.LangHandler.get_lang_file(LangType.SKIN).get_lang(Lang.EN)
-                lang_weapon = lang_module.LangHandler.get_lang_file(LangType.WEAPON).get_lang(Lang.EN)
+                lang_skins = lang_module.LangHandler.get_lang_file(LangTypeVS.SKIN).get_lang(Lang.EN)
+                lang_weapon = lang_module.LangHandler.get_lang_file(LangTypeVS.WEAPON).get_lang(Lang.EN)
                 add_data.update({
                     "weapon": w_data,
                     "character": data,

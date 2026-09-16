@@ -2,6 +2,7 @@ import re
 from pathlib import Path
 from typing import Iterable
 
+import PIL.ImageFont
 from PIL import ImageOps
 from PIL.Image import Image, Resampling
 
@@ -149,6 +150,51 @@ def make_image_black(_image: Image, threshold: int = 10) -> Image:
             else:
                 pixdata[x, y] = (0,) * 4
     return image
+
+
+# Adapted https://github.com/python-pillow/Pillow/discussions/6891
+def autofit_text_into_bounding_box(
+        text: str,
+        font_path: Path,
+        text_width: int,
+        min_max_font_size: tuple[int, int],
+) -> PIL.ImageFont:
+    min_size, max_size = min_max_font_size
+    font = PIL.ImageFont.truetype(font_path, max_size)
+
+    text_split = text.split()
+
+    size = max_size
+    while size >= min_size:
+        font = font.font_variant(size=size)
+        lines = []
+        line = ""
+        for word in text_split:
+            proposed_line = line
+            if line:
+                proposed_line += " "
+            proposed_line += word
+            if font.getlength(proposed_line) <= text_width:
+                line = proposed_line
+            else:
+                # If this word was added, the line would be too long
+                # Start a new line instead
+                lines.append(line)
+                line = word
+        if line:
+            lines.append(line)
+        proposed_text = "\n".join(lines)
+
+        x1, y1, x2, y2 = font.getbbox(proposed_text)
+        w, h = x2 - x1, y2 - y1
+        if w <= text_width:
+            break
+        else:
+            # The text did not fit comfortably into the image
+            # Try again at a smaller font size
+            size -= 1
+
+    return font
 
 
 if __name__ == "__main__":

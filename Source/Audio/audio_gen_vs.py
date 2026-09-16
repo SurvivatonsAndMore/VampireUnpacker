@@ -8,11 +8,11 @@ from typing import Literal, Any
 from pydub import AudioSegment
 
 import Source.Data.data_vs as data_module
-import Source.Translations.language_vs as lang_module
+import Source.Translations.language_vs as language_vs
 from Source.Config.config import DLC, Config
 from Source.Data.data_vs import DataType
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
-from Source.Translations.language_vs import LangType
+from Source.Translations.language_vs import LangTypeVS
 from Source.Translations.language_utils import Lang
 from Source.Utility.constants import GENERATED, COMPOUND_DATA, AUDIO_FOLDER, COMPOUND_DATA_TYPE, PROGRESS_BAR_FUNC_TYPE, \
     PROGRESS_BAR_FUNC_DEFAULT
@@ -169,15 +169,15 @@ def gen_music_tracks(
     bgm_keys = ["bgm", "BGM", "sideBBGM"]
     if AudioSaveType.RELATIVE_NAME in save_name_types:
         not_found = []
-        data_files: dict[str, tuple[LangType, str, str, DataType | None]] = {
-            "unlockedByStage": (LangType.STAGE, "stageName", "Stage", DataType.STAGE),
-            "unlockedByCharacter": (LangType.CHARACTER, "charName", "Character", DataType.CHARACTER),
-            "unlockedByItem": (LangType.ITEM, "name", "Item", None),
+        data_files: dict[str, tuple[LangTypeVS, str, str, DataType | None]] = {
+            "unlockedByStage": (LangTypeVS.STAGE, "stageName", "Stage", DataType.STAGE),
+            "unlockedByCharacter": (LangTypeVS.CHARACTER, "charName", "Character", DataType.CHARACTER),
+            "unlockedByItem": (LangTypeVS.ITEM, "name", "Item", None),
         }
 
         for data_key, items in data_files.items():
             lang_type = items[0]
-            en_lang = lang_module.LangHandler.get_lang_file(lang_type).get_lang(Lang.EN)
+            en_lang = language_vs.LangHandler.get_lang_file(lang_type).get_lang(Lang.EN)
             dat = data_module.DataHandler.get_data(COMPOUND_DATA, items[3])
             if dat:
                 dat = dat.data()
@@ -291,11 +291,13 @@ def gen_music_tracks(
                 key_name = datas[data_key]["key"]
                 cur_type = datas[data_key]["type"]
                 cur_obj = datas[data_key]["lang"].get(data_entry_id) or {}
-                name = cur_obj.get(key_name) or code_name
 
-                surname = cur_obj.get('surname') or " "
+                name = language_vs.get_lang_value(cur_obj, key_name) or code_name
+                surname = language_vs.get_lang_value(cur_obj, 'surname') or " "
+                prefix = language_vs.get_lang_value(cur_obj, 'prefix') or " "
+
                 space2 = surname[0] not in [":", ","] and " " or ""
-                name = f"{cur_obj.get('prefix') or ""} {name}{space2}{surname}".strip()
+                name = f"{prefix} {name}{space2}{surname}".strip()
 
                 # if prefix := cur_obj.get('prefix'):
                 #     flt = lambda x: x and not x.get("prefix") and x.get("charName") == name
