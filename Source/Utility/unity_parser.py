@@ -339,7 +339,6 @@ class UnityParserR(Parser):
 
 class UnityLoaderR(Reader, Scanner, UnityParserR, Composer, SafeConstructor, Resolver):
     def __init__(self, stream):
-        yaml.add_multi_constructor('tag:unity3d.com,2011', self.unity_yaml_constructor, UnityLoaderR)
 
         Reader.__init__(self, stream)
         Scanner.__init__(self)
@@ -359,6 +358,7 @@ class UnityLoaderR(Reader, Scanner, UnityParserR, Composer, SafeConstructor, Res
 
         return UnityEntry(class_name, class_id, file_id, data)
 
+yaml.add_multi_constructor('tag:unity3d.com,2011', UnityLoaderR.unity_yaml_constructor, UnityLoaderR)
 
 @dataclass
 class UnityDocTree(UnityEntry):

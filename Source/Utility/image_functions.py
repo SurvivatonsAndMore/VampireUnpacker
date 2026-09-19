@@ -2,8 +2,8 @@ import re
 from pathlib import Path
 from typing import Iterable
 
-from PIL import ImageOps, ImageText, ImageFont
-from PIL.Image import Image, Resampling
+from PIL import ImageOps, ImageText, ImageFont, Image
+from PIL.Image import Resampling, Transpose, Image
 
 from Source.Utility.constants import PROGRESS_BAR_FUNC_TYPE, PROGRESS_BAR_FUNC_DEFAULT
 from Source.Utility.sprite_data import SpriteData, SpriteRect, AnimationData
@@ -105,53 +105,52 @@ def get_tint(tint_dec_int: int) -> tuple[int, int, int]:
 
 def apply_tint(image: Image, tint_color: tuple[int, int, int],
                func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT) -> Image:
-    img = image.copy().convert('RGBA')
-    pixels = img.load()
+    img = image.convert('RGBA')
 
-    width, height = img.size
+    luts = [
+        [i * tint_color[ch] // 255 for i in range(256)]
+        for ch in range(3)
+    ]
 
-    total_length = width * height
+    rgba = list(img.split())
 
-    for x in range(width):
-        for y in range(height):
-            r, g, b, a = pixels[x, y]
+    n = 3
+    mode = 'RGBA'
+    for i in range(n):
+        rgba[i] = rgba[i].point(luts[i])
+        func_progress_bar_set_percent(i + 1, n + 1, mode[i])
 
-            r = int(r * tint_color[0] / 255)
-            g = int(g * tint_color[1] / 255)
-            b = int(b * tint_color[2] / 255)
+    out = Image.merge('RGBA', rgba)
+    func_progress_bar_set_percent(n + 1, n + 1, "Created new image")
 
-            pixels[x, y] = (r, g, b, a)
-            func_progress_bar_set_percent(x * height + y, total_length, f"{x=}, {y=}")
-
-    return img
+    return out
 
 
 def create_tint_image(image_path: Path, save_folder: Path, tint_color: tuple[int, int, int],
                       func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT) -> Path:
-    import PIL.Image
-    PIL.Image.MAX_IMAGE_PIXELS = 2766929920
-    image = PIL.Image.open(image_path)
+    # Image.MAX_IMAGE_PIXELS = 2766929920
 
-    img = apply_tint(image, tint_color, func_progress_bar_set_percent)
+    with Image.open(image_path) as image:
+        image.load()
+        img = apply_tint(image, tint_color, func_progress_bar_set_percent)
+
     img.save(save_folder / image_path.name)
-    img.rotate(180).save(save_folder / image_path.with_stem(image_path.stem + "_inv").name)
+    img.transpose(Transpose.ROTATE_180).save(save_folder / f"{image_path.stem}_inv{image_path.suffix}")
 
     return save_folder
 
 
-def make_image_black(_image: Image, threshold: int = 10) -> Image:
-    image = _image.copy()
-    pixdata = image.load()
-    for y in range(image.size[1]):
-        for x in range(image.size[0]):
-            if pixdata[x, y][3] > threshold:
-                pixdata[x, y] = (0, 0, 0, 255)
-            else:
-                pixdata[x, y] = (0,) * 4
-    return image
+def make_image_black(image: Image, threshold: int = 10) -> Image:
+    img = image.convert('RGBA')
+
+    lut = [255 if i > threshold else 0 for i in range(256)]
+    alpha = img.getchannel('A').point(lut)
+
+    out = Image.new('RGBA', img.size, (0, 0, 0, 0))
+    out.putalpha(alpha)
+    return out
 
 
-# Adapted https://github.com/python-pillow/Pillow/discussions/6891
 def get_wrapped_text(
         text: str,
         font_path: Path,
@@ -165,7 +164,7 @@ def get_wrapped_text(
     image_text = ImageText.Text(text, font)
     image_text.wrap(text_width, text_height, scaling=("shrink", 20))
 
-    # bug workaround
+    # bug workaround until fixed https://github.com/python-pillow/Pillow/pull/10025
     if image_text.font.size == max_size:
         wrap = ImageText._Wrap(image_text, text_width, text_height, image_text.font)
         image_text.text = "\n".join(wrap.lines)
