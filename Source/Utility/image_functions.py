@@ -2,8 +2,7 @@ import re
 from pathlib import Path
 from typing import Iterable
 
-import PIL.ImageFont
-from PIL import ImageOps
+from PIL import ImageOps, ImageText, ImageFont
 from PIL.Image import Image, Resampling
 
 from Source.Utility.constants import PROGRESS_BAR_FUNC_TYPE, PROGRESS_BAR_FUNC_DEFAULT
@@ -153,48 +152,25 @@ def make_image_black(_image: Image, threshold: int = 10) -> Image:
 
 
 # Adapted https://github.com/python-pillow/Pillow/discussions/6891
-def autofit_text_into_bounding_box(
+def get_wrapped_text(
         text: str,
         font_path: Path,
-        text_width: int,
+        text_size: tuple[int, int],
         min_max_font_size: tuple[int, int],
-) -> PIL.ImageFont:
+) -> ImageText:
+    text_width, text_height = text_size
     min_size, max_size = min_max_font_size
-    font = PIL.ImageFont.truetype(font_path, max_size)
+    font = ImageFont.truetype(font_path, max_size)
 
-    text_split = text.split()
+    image_text = ImageText.Text(text, font)
+    image_text.wrap(text_width, text_height, scaling=("shrink", 20))
 
-    size = max_size
-    while size >= min_size:
-        font = font.font_variant(size=size)
-        lines = []
-        line = ""
-        for word in text_split:
-            proposed_line = line
-            if line:
-                proposed_line += " "
-            proposed_line += word
-            if font.getlength(proposed_line) <= text_width:
-                line = proposed_line
-            else:
-                # If this word was added, the line would be too long
-                # Start a new line instead
-                lines.append(line)
-                line = word
-        if line:
-            lines.append(line)
-        proposed_text = "\n".join(lines)
+    # bug workaround
+    if image_text.font.size == max_size:
+        wrap = ImageText._Wrap(image_text, text_width, text_height, image_text.font)
+        image_text.text = "\n".join(wrap.lines)
 
-        x1, y1, x2, y2 = font.getbbox(proposed_text)
-        w, h = x2 - x1, y2 - y1
-        if w <= text_width:
-            break
-        else:
-            # The text did not fit comfortably into the image
-            # Try again at a smaller font size
-            size -= 1
-
-    return font
+    return image_text
 
 
 if __name__ == "__main__":

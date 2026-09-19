@@ -1,4 +1,6 @@
 class BasePopup(Exception):
+    __match_args__ = ("title", "message")
+
     def __init__(self, title, message, *args):
         super().__init__(title, message, *args)
         self.title: str = title

@@ -1,27 +1,28 @@
+from __future__ import annotations
+
 import os
 import re
 import sys
 import tkinter as tk
 import tkinter.ttk as ttk
-from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
 
-from PIL import ImageFont, ImageDraw
+from PIL import ImageFont, ImageDraw, ImageText
 from PIL.Image import Image, open as image_open, new as image_new
 
 from Source.Config.config import DLC
 from Source.Data.data_vs import DataHandler, DataType, DataFile
+from Source.Data.meta_data import MetaDataHandler, to_current_game_path
 from Source.Translations import language_vs
-from Source.Translations.language_vs import LangHandler, LangTypeVS
 from Source.Translations.language_utils import Lang
+from Source.Translations.language_vs import LangHandler, LangTypeVS
 from Source.Utility import image_functions
 from Source.Utility.constants import to_source_path, IMAGES_FOLDER, COMPOUND_DATA_TYPE, GENERATED, \
     PROGRESS_BAR_FUNC_TYPE, COMPOUND_DATA, PROGRESS_BAR_FUNC_DEFAULT
 from Source.Utility.image_functions import make_image_black
 from Source.Utility.image_functions import resize_image, get_adjusted_sprites_to_rect, get_rects_by_sprite_list
-from Source.Data.meta_data import MetaDataHandler, to_current_game_path
 from Source.Utility.sprite_data import SpriteData
 from Source.Utility.timer import Timeit
 from Source.Utility.utility import normalize_str
@@ -59,11 +60,26 @@ class GenType(Enum):
 
     STAGE_WITH_NAME = 40
 
+    TEXT_STROKE_WIDTH = 41
+
     @classmethod
-    def get_types(cls) -> set["GenType"]:
+    def get_types(cls) -> set[GenType]:
         return {*cls}
 
-    def get_tip(self):
+    @classmethod
+    def get_int_types(cls) -> set[GenType]:
+        return {cls.IMAGE, cls.TEXT_STROKE_WIDTH}
+
+    def get_input_value(self, value):
+        match self:
+            case GenType.IMAGE:
+                return int(value)
+            case GenType.TEXT_STROKE_WIDTH:
+                return float(value)
+            case _:
+                return value
+
+    def get_tip(self) -> str:
         match self:
             case GenType.IMAGE:
                 return "Scale factor"
@@ -87,6 +103,8 @@ class GenType(Enum):
 
             case GenType.STAGE_WITH_NAME:
                 return "Generate with stage name"
+            case GenType.TEXT_STROKE_WIDTH:
+                return "Text stroke width"
         return None
 
 
@@ -291,12 +309,11 @@ class BaseImageGenerator:
         total_len = len(entries)
 
         for i, entry in enumerate(entries):
+            func_progress_bar_set_percent(i + 1, total_len, f"{add_to_path or "Image"}: {entry.get(KEY_ID)}")
+
             out_entry = gen_function(entry)
             if out_entry:
                 out_entry.save_entry(save_path, entry, scale, add_to_path=add_to_path)
-
-            func_progress_bar_set_percent(i + 1, total_len,
-                                          f"{add_to_path or "Image"}: {out_entry.name}" if out_entry else "")
 
     def main_generator(self, dlc_type: DLC | COMPOUND_DATA_TYPE, data_type: DataType,
                        func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT) -> Path | None:
@@ -694,7 +711,7 @@ class PowerUpImageGenerator(ListBaseImageGenerator):
 
 class CharacterImageGenerator(ListBaseImageGenerator):
     _available_gens: list[GenType] = [GenType.IMAGE, GenType.IMAGE_FRAME, GenType.CHARACTER_SPECIAL_SELECT,
-                                      GenType.CHARACTER_SKINS]
+                                      GenType.CHARACTER_SKINS, GenType.TEXT_STROKE_WIDTH]
 
     data_type: DataType = DataType.CHARACTER
     lang_type: LangTypeVS = LangTypeVS.CHARACTER
@@ -711,6 +728,7 @@ class CharacterImageGenerator(ListBaseImageGenerator):
     key_secondary_sprite_name = CHAR_SEL_FRAME
 
     default_frame_name = "CharacterSelectFrame.png"
+    default_stroke_width = 0.7
 
     def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE, data_type: DataType,
                  requested_gen_types: dict[GenType, int | bool]):
@@ -721,6 +739,9 @@ class CharacterImageGenerator(ListBaseImageGenerator):
             self.frame_image = image_open(to_source_path(IMAGES_FOLDER) / self.default_frame_name)
 
         self.weapon_skin_entries = None
+        self.select_entries = None
+        self.select_skin_entries = None
+        self.weapon_select_skin_entries = None
 
         if requested_gen_types.get(GenType.CHARACTER_SKINS):
             self.weapon_skin_entries = self.get_weapon_entries(self.skin_entries)
@@ -956,12 +977,18 @@ class CharacterImageGenerator(ListBaseImageGenerator):
         frame_image.alpha_composite(char_sprite, (12, frame_image.height - char_sprite.height - 11))
 
         text = entry.get(CHAR_NAME)
-        font = image_functions.autofit_text_into_bounding_box(text, FONT_FILE_PATH, frame_image.size[0] - 30, (20, 30))
+
+        image_text = image_functions.get_wrapped_text(
+            text,
+            FONT_FILE_PATH,
+            (frame_image.size[0] - 30, frame_image.size[1]),
+            (20, 30)
+        )
+        image_text.stroke(width=self.requested_gens.get(GenType.TEXT_STROKE_WIDTH), fill="#ffffff")
 
         canvas = image_new('RGBA', frame_image.size)
-
         draw = ImageDraw.Draw(canvas)
-        draw.text((3, 5), text, "#ffffff", font, stroke_width=0.6)
+        draw.text((3, 5), image_text)
 
         frame_image.alpha_composite(canvas, (14, 10))
 
@@ -992,7 +1019,7 @@ class EnemyImageGenerator(ListBaseImageGenerator):
 
 
 class StageImageGenerator(ListBaseImageGenerator):
-    _available_gens: list[GenType] = [GenType.IMAGE, GenType.STAGE_WITH_NAME]
+    _available_gens: list[GenType] = [GenType.IMAGE, GenType.STAGE_WITH_NAME, GenType.TEXT_STROKE_WIDTH]
 
     data_type: DataType = DataType.STAGE
     lang_type: LangTypeVS = LangTypeVS.STAGE
@@ -1005,6 +1032,8 @@ class StageImageGenerator(ListBaseImageGenerator):
     key_sprite_name = "uiFrame"
     key_frame_name = None
     key_entry_name = "stageName"
+
+    default_stroke_width = 1
 
     def main_generator(self, dlc_type: DLC | COMPOUND_DATA_TYPE, data_type: DataType,
                        func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT) -> Path | None:
@@ -1045,7 +1074,7 @@ class StageImageGenerator(ListBaseImageGenerator):
         canvas = image_new('RGBA', (int(w), int(h)))
 
         draw = ImageDraw.Draw(canvas)
-        draw.text((3, -5), text, "#eef92b", font, stroke_width=1)
+        draw.text((3, -5), text, "#eef92b", font, stroke_width=self.requested_gens.get(GenType.TEXT_STROKE_WIDTH))
 
         crx, cry = stage_image.size
         crx //= 2
@@ -1095,7 +1124,7 @@ class GeneratorDialog(tk.Toplevel):
         ttk.Label(self, text="Select settings for image generator").pack()
         ttk.Label(self, text=f"({gen.data_type})").pack()
 
-        self.settings = dict()
+        self.settings: dict[GenType, ...] = dict()
 
         gen_types_order = list(sorted(GenType.get_types(), key=lambda x: x.value))
         available_gens = gen.get_available_gens()
@@ -1111,6 +1140,15 @@ class GeneratorDialog(tk.Toplevel):
                 scale_input.pack()
 
                 self.settings.update({gen_type: scale_input})
+
+            elif gen_type == GenType.TEXT_STROKE_WIDTH:
+                ttk.Label(self, text=gen_type.get_tip()).pack()
+                stroke_width_input = ttk.Entry(self)
+                stroke_width_input.insert(0, str(gen.default_stroke_width))
+                stroke_width_input.pack()
+
+                self.settings.update({gen_type: stroke_width_input})
+
             else:
                 bool_var = tk.BooleanVar()
                 ttk.Checkbutton(self, text=gen_type.get_tip(), variable=bool_var, takefocus=False).pack()
@@ -1126,5 +1164,16 @@ class GeneratorDialog(tk.Toplevel):
         self.destroy()
 
     def __close(self):
-        self.return_data = {k: v.get() if k != GenType.IMAGE else int(v.get()) for k, v in self.settings.items()}
+        self.return_data = {k: k.get_input_value(v.get()) for k, v in self.settings.items()}
         self.destroy()
+
+
+if __name__ == "__main__":
+    width, height = 198, 228
+    text = "Master Librarian"
+    font = ImageFont.truetype("Courier.ttf", 30)
+    image_text = ImageText.Text(text, font)
+    image_text.stroke(width=0.7, fill="#ffffff")
+    a = image_text.wrap(width, height, scaling=("shrink", 20))
+    wrap = ImageText._Wrap(image_text, width, height, font)
+    print(repr(image_text.text), repr(a), repr(wrap.lines))
