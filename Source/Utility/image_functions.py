@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 from typing import Iterable
 
-from PIL import ImageOps, ImageText, ImageFont, Image
+from PIL import ImageOps, ImageText, ImageFont, Image as PILImage
 from PIL.Image import Resampling, Transpose, Image
 
 from Source.Utility.constants import PROGRESS_BAR_FUNC_TYPE, PROGRESS_BAR_FUNC_DEFAULT
@@ -25,10 +25,13 @@ def resize_image(image: Image, scale_factor: int | float) -> Image:
 
 
 def resize_list_images(images: list[Image], scale_factor: int) -> list[Image]:
-    return list(map(resize_image, images, (scale_factor,) * len(images)))
+    return [resize_image(image, scale_factor) for image in images]
 
 
-def affine_transform(image: Image, matrix: tuple[int, int, int, int]) -> Image:
+def apply_simple_affine_transform(image: Image, matrix: tuple[int, int, int, int]) -> Image:
+    """
+    Apply simple affine transform to an image: 0/90/180/270 degrees rotation or mirroring
+    """
     e00, e10, e01, e11 = matrix
 
     if e00 + e10 < 0:
@@ -57,6 +60,9 @@ def split_name_count(name: str) -> tuple[str, int]:
 
 # Note: pivots for sprites of animation are on the same relative pixel for the whole animation
 def get_rects_by_sprite_list(sprites_list: list[SpriteData]) -> list[SpriteRect]:
+    if not sprites_list:
+        return []
+
     relative_pivots = []
     for sprite in sprites_list:
         pivot = {
@@ -84,11 +90,7 @@ def get_rects_by_sprite_list(sprites_list: list[SpriteData]) -> list[SpriteRect]
 
 
 def get_adjusted_sprites_to_rect(image_rect: Iterable[tuple[Image, SpriteRect]]) -> list[Image]:
-    sprites_list = []
-    for img, rect in image_rect:
-        sprite = crop_image_rect_left_top(img, rect)
-        sprites_list.append(sprite)
-    return sprites_list
+    return [crop_image_rect_left_top(img, rect) for img, rect in image_rect]
 
 
 def get_anim_sprites_ready(anim: AnimationData) -> list[Image]:
@@ -120,18 +122,18 @@ def apply_tint(image: Image, tint_color: tuple[int, int, int],
         rgba[i] = rgba[i].point(luts[i])
         func_progress_bar_set_percent(i + 1, n + 1, mode[i])
 
-    out = Image.merge('RGBA', rgba)
+    out = PILImage.merge('RGBA', rgba)
     func_progress_bar_set_percent(n + 1, n + 1, "Created new image")
 
     return out
 
 
+PILImage.MAX_IMAGE_PIXELS = 2766929920
+
+
 def create_tint_image(image_path: Path, save_folder: Path, tint_color: tuple[int, int, int],
                       func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT) -> Path:
-    # Image.MAX_IMAGE_PIXELS = 2766929920
-
-    with Image.open(image_path) as image:
-        image.load()
+    with PILImage.open(image_path) as image:
         img = apply_tint(image, tint_color, func_progress_bar_set_percent)
 
     img.save(save_folder / image_path.name)
@@ -141,14 +143,13 @@ def create_tint_image(image_path: Path, save_folder: Path, tint_color: tuple[int
 
 
 def make_image_black(image: Image, threshold: int = 10) -> Image:
-    img = image.convert('RGBA')
-
     lut = [255 if i > threshold else 0 for i in range(256)]
-    alpha = img.getchannel('A').point(lut)
 
-    out = Image.new('RGBA', img.size, (0, 0, 0, 0))
-    out.putalpha(alpha)
-    return out
+    img = image.convert('RGBA')
+    alpha = img.getchannel('A').point(lut)
+    img.paste((0, 0, 0), (0, 0, *img.size), alpha)
+    img.putalpha(alpha)
+    return img
 
 
 def get_wrapped_text(
@@ -162,7 +163,7 @@ def get_wrapped_text(
     font = ImageFont.truetype(font_path, max_size)
 
     image_text = ImageText.Text(text, font)
-    image_text.wrap(text_width, text_height, scaling=("shrink", 20))
+    image_text.wrap(text_width, text_height, scaling=("shrink", min_size))
 
     # bug workaround until fixed https://github.com/python-pillow/Pillow/pull/10025
     if image_text.font.size == max_size:

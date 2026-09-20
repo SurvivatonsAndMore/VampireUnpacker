@@ -3,6 +3,11 @@ from pathlib import Path
 from typing import Any
 
 
+def delete_file(path: Path):
+    if path.exists():
+        path.unlink()
+
+
 def clear_file(save_path: Path):
     with open(save_path, "w+", encoding="UTF-8") as f:
         f.write("")

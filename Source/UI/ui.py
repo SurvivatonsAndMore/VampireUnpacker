@@ -253,7 +253,6 @@ class UIBase:
             return
 
         print(f"Selected for generating tilemap: {tilemap_paths!r}")
-        print(f"Multiprocessing: {Config.get_multiprocessing()}")
 
         from Source.Images import tilemap_gen
         save_folder = None

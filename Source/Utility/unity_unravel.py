@@ -3,7 +3,7 @@ from itertools import cycle
 from Source.Data.meta_data import MetaDataHandler, MetaData, ExactMetaData
 from Source.Data.unity_data import UnityDataHandler
 from Source.Utility.constants import NOT_UNITY_DATA_CLASS_IDS
-from Source.Utility.multirun import run_multiprocess, run_multiprocess_single
+from Source.Utility.multirun import map_multiprocess, starmap_multiprocess
 from Source.Utility.unity_parser import UnityEntry, UnityDoc, UnityReference, UnityLocalizedReference
 
 
@@ -61,7 +61,7 @@ def unity_unravel_doc(unity_doc: UnityDoc, depth: int = 1, is_load_sprites: bool
     for d in range(depth):
         unity_refs = {
             guid
-            for g_list in run_multiprocess_single(_get_data, [e.data for e in _unity_doc.entries])
+            for g_list in map_multiprocess(_get_data, [e.data for e in _unity_doc.entries])
             for guid in g_list
         }
 
@@ -84,7 +84,7 @@ def unity_unravel_doc(unity_doc: UnityDoc, depth: int = 1, is_load_sprites: bool
 
         args = zip(_unity_doc.entries, cycle((guid_docs,)))
 
-        _unity_doc.entries = run_multiprocess(_unity_unravel_entry, args)
+        _unity_doc.entries = starmap_multiprocess(_unity_unravel_entry, args)
 
     return _unity_doc
 

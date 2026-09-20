@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import itertools
 import os
 import re
@@ -5,7 +7,7 @@ from dataclasses import dataclass
 from io import StringIO
 from itertools import starmap
 from pathlib import Path
-from typing import TextIO, Self, Callable, Iterable
+from typing import TextIO, Callable, Iterable
 
 import yaml
 from yaml import Node, MappingNode, Loader
@@ -16,7 +18,7 @@ from yaml.reader import Reader
 from yaml.resolver import Resolver
 from yaml.scanner import Scanner
 
-from Source.Utility.multirun import run_multiprocess
+from Source.Utility.multirun import starmap_multiprocess
 from Source.Utility.timer import Timeit
 
 MAX_PARSE_BATCH_SIZE = 1 << 12
@@ -29,7 +31,7 @@ class UnityEntry:
     fileID: int
     data: dict
 
-    __none: Self = None
+    __none: UnityEntry = None
 
     def __repr__(self):
         m_name = self.data.get('m_Name')
@@ -39,7 +41,7 @@ class UnityEntry:
     def get(self, item):
         return self.data.get(item)
 
-    def extend_data(self, other: Self):
+    def extend_data(self, other: UnityEntry):
         assert self.fileID == other.fileID
         self.data["m_Tiles"].extend(other.data["m_Tiles"])
 
@@ -195,25 +197,25 @@ class UnityDoc:
         return list(entries)
 
     @staticmethod
-    def yaml_parse_text_smart(text: str, filter_func: Callable[[str], bool] = None) -> Self:
+    def yaml_parse_text_smart(text: str, filter_func: Callable[[str], bool] = None) -> UnityDoc:
         if len(text) < 1e7:
             return UnityDoc.yaml_parse_text(text, filter_func)
         else:
             return UnityDoc.yaml_parse_text_parallel(text, filter_func)
 
     @staticmethod
-    def yaml_parse_io_smart(text_io: TextIO, filter_func: Callable[[str], bool] = None) -> Self:
+    def yaml_parse_io_smart(text_io: TextIO, filter_func: Callable[[str], bool] = None) -> UnityDoc:
         with text_io as _f:
             text = _f.read()
         return UnityDoc.yaml_parse_text_smart(text, filter_func)
 
     @staticmethod
-    def yaml_parse_file_smart(path: os.PathLike[str], filter_func: Callable[[str], bool] = None) -> Self:
+    def yaml_parse_file_smart(path: os.PathLike[str], filter_func: Callable[[str], bool] = None) -> UnityDoc:
         with open(path, "r", encoding="UTF-8") as _f:
             return UnityDoc.yaml_parse_io_smart(_f, filter_func)
 
     @staticmethod
-    def yaml_parse_text(text: str, filter_func: Callable[[str], bool] = None) -> Self:
+    def yaml_parse_text(text: str, filter_func: Callable[[str], bool] = None) -> UnityDoc:
         text_parse = text
 
         if filter_func:
@@ -226,18 +228,18 @@ class UnityDoc:
         return UnityDoc(entries)
 
     @staticmethod
-    def yaml_parse_io(text_io: TextIO, filter_func: Callable[[str], bool] = None) -> Self:
+    def yaml_parse_io(text_io: TextIO, filter_func: Callable[[str], bool] = None) -> UnityDoc:
         with text_io as _f:
             text = _f.read()
         return UnityDoc.yaml_parse_text(text, filter_func)
 
     @staticmethod
-    def yaml_parse_file(path: os.PathLike[str]) -> Self:
+    def yaml_parse_file(path: os.PathLike[str]) -> UnityDoc:
         with open(path, "r", encoding="UTF-8") as _f:
             return UnityDoc.yaml_parse_io(_f)
 
     @staticmethod
-    def yaml_parse_text_parallel(text: str, filter_func: Callable[[str], bool] = None) -> Self:
+    def yaml_parse_text_parallel(text: str, filter_func: Callable[[str], bool] = None) -> UnityDoc:
         unity_tag = "--- "
         text_split = text.split(unity_tag)[1:]
 
@@ -249,7 +251,8 @@ class UnityDoc:
         text_split_parts_list = starmap(_split_yaml_string, text_split_enum)
         text_split_parts = (part for parts in text_split_parts_list for part in parts)  # flatten
 
-        entries_parts = run_multiprocess(_yaml_load_part, text_split_parts)
+        ### Slowest part
+        entries_parts = starmap_multiprocess(_yaml_load_part, text_split_parts, chunksize=4)
 
         entries: list[UnityEntry | None] = [None] * (entries_parts[-1][0] + 1)
         for entry_index, part_index, entry in entries_parts:
@@ -261,13 +264,13 @@ class UnityDoc:
         return UnityDoc(entries)
 
     @staticmethod
-    def yaml_parse_io_parallel(text_io: TextIO, filter_func: Callable[[str], bool] = None) -> Self:
+    def yaml_parse_io_parallel(text_io: TextIO, filter_func: Callable[[str], bool] = None) -> UnityDoc:
         with text_io as _f:
             text = _f.read()
         return UnityDoc.yaml_parse_text_parallel(text, filter_func)
 
     @staticmethod
-    def yaml_parse_file_parallel(path: os.PathLike[str], filter_func: Callable[[str], bool] = None) -> Self:
+    def yaml_parse_file_parallel(path: os.PathLike[str], filter_func: Callable[[str], bool] = None) -> UnityDoc:
         with open(path, "r", encoding="UTF-8") as _f:
             return UnityDoc.yaml_parse_io_parallel(_f, filter_func)
 
@@ -339,7 +342,6 @@ class UnityParserR(Parser):
 
 class UnityLoaderR(Reader, Scanner, UnityParserR, Composer, SafeConstructor, Resolver):
     def __init__(self, stream):
-
         Reader.__init__(self, stream)
         Scanner.__init__(self)
         UnityParserR.__init__(self)

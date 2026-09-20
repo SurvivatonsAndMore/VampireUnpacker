@@ -1,4 +1,3 @@
-import asyncio
 import shutil
 from dataclasses import dataclass
 from enum import Enum
@@ -12,11 +11,12 @@ import Source.Translations.language_vs as language_vs
 from Source.Config.config import DLC, Config
 from Source.Data.data_vs import DataType
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
-from Source.Translations.language_vs import LangTypeVS
 from Source.Translations.language_utils import Lang
+from Source.Translations.language_vs import LangTypeVS
 from Source.Utility.constants import GENERATED, COMPOUND_DATA, AUDIO_FOLDER, COMPOUND_DATA_TYPE, PROGRESS_BAR_FUNC_TYPE, \
     PROGRESS_BAR_FUNC_DEFAULT
-from Source.Utility.multirun import run_concurrent_sync, run_gather
+from Source.Utility.multirun import map_multiprocess, starmap_multiprocess, \
+    starmap_multithread, map_multithread
 from Source.Utility.timer import Timeit
 from Source.Utility.unity_parser import UnityDoc
 from Source.Utility.utility import normalize_str
@@ -49,7 +49,7 @@ def _get_music_playlists() -> list[dict[str, Any]]:
     print(f"Parsing audio prefabs ({len(audio_prefabs)})... ", end=" ")
 
     args_load = (audio_prefab.with_suffix("") for audio_prefab in audio_prefabs)
-    all_unity_playlists = run_concurrent_sync(UnityDoc.yaml_parse_file_smart, args_load)
+    all_unity_playlists = map_multiprocess(UnityDoc.yaml_parse_file_smart, args_load)
 
     print(f"Finished parsing audio prefabs {timeit!r}")
 
@@ -89,11 +89,10 @@ class MusicTrack:
     def get_code_name_ext(self):
         return f"{self.code_name}.{self.ext}"
 
-    async def init_audio(self):
+    def init_audio(self):
         if not self.ext:
             return
-        clips: list[tuple[Path, AudioSegment]] = await asyncio.gather(
-            *[asyncio.to_thread(_get_audio_clip, path) for path in self.audio_clips_paths])
+        clips: list[tuple[Path, AudioSegment]] = map_multithread(_get_audio_clip, self.audio_clips_paths)
         self.audio = sum(dict(clips).values()) if clips else None
 
 
@@ -208,7 +207,6 @@ def gen_music_tracks(
 
     total_len = len(music_playlists)
 
-    print(f"Multiprocessing: {Config.get_multiprocessing()}")
     print(f"Generating {total_len} tacks")
 
     args_gen_tracks = (
@@ -217,8 +215,8 @@ def gen_music_tracks(
     )
     timeit = Timeit()
 
-    audio_tracks: list[MusicTrack] = run_concurrent_sync(_get_music_track, args_gen_tracks)
-    run_gather(*[track.init_audio() for track in audio_tracks])
+    audio_tracks: list[MusicTrack] = starmap_multiprocess(_get_music_track, args_gen_tracks)
+    map_multithread(MusicTrack.init_audio, audio_tracks, max_workers=8)
     audio_tracks = list(filter(lambda x: x.audio, audio_tracks))
 
     total_len = len(audio_tracks)
@@ -250,7 +248,7 @@ def gen_music_tracks(
         (music_tack, path_dest(AudioSaveType.CODE_NAME, music_tack) / music_tack.get_code_name_ext())
         for music_tack in audio_tracks
     ]
-    run_concurrent_sync(_save_track, args_save_tracks)
+    starmap_multithread(_save_track, args_save_tracks, max_workers=8)
 
     print(f"Saved tracks with code names {timeit!r}")
 

@@ -8,12 +8,12 @@ from typing import Any
 
 from Source.Config.config import Game
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
+from Source.Translations.language_vc import LangHandlerVC
+from Source.Utility.constants import DATA_FOLDER, PROGRESS_BAR_FUNC_TYPE, \
+    PROGRESS_BAR_FUNC_DEFAULT
+from Source.Utility.multirun import map_multiprocess, starmap_multithread
 from Source.Utility.unity_parser import UnityDoc, UnityReference, UnityLocalizedReference, UnityEntry
 from Source.Utility.unity_unravel import unity_unravel_doc
-from Source.Utility.constants import ROOT_FOLDER, VAMPIRE_CRAWLERS, DATA_FOLDER, PROGRESS_BAR_FUNC_TYPE, \
-    PROGRESS_BAR_FUNC_DEFAULT
-from Source.Utility.multirun import run_concurrent_sync
-from Source.Translations.language_vc import LangHandlerVC
 from Source.Utility.utility import deep_remove_dict_keys
 
 
@@ -253,8 +253,8 @@ class DeckDataDumper(BaseDataDumper):
     @classmethod
     def get_udocs(cls, depth: int, verbose: int = 0) -> list[UnityDoc]:
         paths = MetaDataHandler.filter_paths(lambda name_path: name_path[0].endswith('deck'))
-        docs = run_concurrent_sync(UnityDoc.yaml_parse_file_smart, (p.with_suffix("") for n, p in paths))
-        return run_concurrent_sync(unity_unravel_doc, zip(docs, cycle((depth,)), cycle((verbose,))))
+        docs = map_multiprocess(UnityDoc.yaml_parse_file_smart, (p.with_suffix("") for n, p in paths))
+        return starmap_multithread(unity_unravel_doc, zip(docs, cycle((depth,)), cycle((verbose,))))
 
     @classmethod
     def dump_data(cls) -> dict[str, Any]:
@@ -731,8 +731,8 @@ class MultipleDataDumper(BaseDataDumper):
                 lambda name_path: name_path[0].startswith(sp) and not name_path[0].endswith('.meta'))
             found_paths.update((p.with_suffix("") for n, p in paths))
 
-        docs = run_concurrent_sync(UnityDoc.yaml_parse_file_smart, found_paths)
-        return run_concurrent_sync(unity_unravel_doc, zip(docs, cycle((depth,)), cycle((verbose,))))
+        docs = map_multiprocess(UnityDoc.yaml_parse_file_smart, found_paths)
+        return starmap_multithread(unity_unravel_doc, zip(docs, cycle((depth,)), cycle((verbose,))))
 
 
 class GemFrequencyDataDumper(MultipleDataDumper):

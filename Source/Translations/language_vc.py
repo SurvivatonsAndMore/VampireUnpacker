@@ -8,7 +8,7 @@ from Source.Data.meta_data import MetaDataHandler, to_current_game_path
 from Source.Translations.language_utils import Lang
 from Source.Utility.constants import TRANSLATIONS_FOLDER, GENERATED, SHARED_DATA, PROGRESS_BAR_FUNC_TYPE, \
     PROGRESS_BAR_FUNC_DEFAULT
-from Source.Utility.multirun import run_concurrent_sync
+from Source.Utility.multirun import map_multithread
 from Source.Utility.special_classes import Objectless
 from Source.Utility.timer import Timeit
 from Source.Utility.unity_parser import UnityDoc, UnityEntry, UnityLocalizedReference
@@ -99,7 +99,7 @@ class LangHandlerVC(Objectless):
     @classmethod
     def get_lang_by_guid(cls, guid: str) -> LangFileVC:
         if not guid in cls._data_loaded:
-            run_concurrent_sync(cls.get_lang_file, [*LangTypeVC])
+            map_multithread(cls.get_lang_file, [*LangTypeVC])
 
         return cls._data_loaded.get(guid)
 

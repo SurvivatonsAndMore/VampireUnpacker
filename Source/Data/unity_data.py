@@ -1,7 +1,13 @@
+from pathlib import Path
+
 from Source.Data.meta_data import MetaDataHandler
-from Source.Utility.multirun import run_concurrent_sync
+from Source.Utility.multirun import starmap_multiprocess
 from Source.Utility.special_classes import Objectless
 from Source.Utility.unity_parser import UnityDoc
+
+
+def _get_doc_with_guid(guid: str, path: Path):
+    return UnityDoc.yaml_parse_file_smart(path).set_guid(guid)
 
 
 class UnityDataHandler(Objectless):
@@ -15,8 +21,7 @@ class UnityDataHandler(Objectless):
             guid_paths = [(guid, MetaDataHandler.get_path_by_guid_no_meta(guid)) for guid in guids]
             guid_paths_not_none = (arg for arg in guid_paths if arg[-1] is not None)
             # print(guid_paths)
-            docs = run_concurrent_sync(lambda guid, path: UnityDoc.yaml_parse_file_smart(path).set_guid(guid),
-                                       guid_paths_not_none)
+            docs = starmap_multiprocess(_get_doc_with_guid, guid_paths_not_none)
             cls.loaded_data.update({
                 doc.guid: doc
                 for doc in docs

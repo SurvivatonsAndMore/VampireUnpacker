@@ -4,19 +4,16 @@ from pathlib import Path
 from PIL.Image import Image, new as image_new
 
 from Source.Config.config import Config
-from Source.UI.ui import UIBase
-from Source.UI.ui_tkinter import UITkinter
+from Source.Data.meta_data import MetaData, MetaDataHandler, to_current_game_path
 from Source.Utility.constants import IMAGES_FOLDER, GENERATED, TILEMAPS, PROGRESS_BAR_FUNC_TYPE, \
     PROGRESS_BAR_FUNC_DEFAULT
-from Source.Utility.image_functions import affine_transform, crop_image_rect_left_bot
-from Source.Data.meta_data import MetaData, MetaDataHandler, to_current_game_path
-from Source.Utility.multirun import run_multiprocess, run_concurrent_sync
+from Source.Utility.image_functions import apply_simple_affine_transform, crop_image_rect_left_bot
+from Source.Utility.multirun import starmap_multithread
 from Source.Utility.special_classes import Objectless
 from Source.Utility.sprite_data import SpriteData, SpriteRect
 from Source.Utility.timer import Timeit
 from Source.Utility.unity_parser import UnityDoc, UnityEntry
-from Source.Utility.utility import write_in_file_end, clear_file
-from Source.UI.boxes_tkinter import CheckBoxes
+from Source.Utility.utility import write_in_file_end, delete_file
 
 
 class Tilemap:
@@ -84,11 +81,12 @@ def __create_tilemap_image(tilemap: Tilemap, new_image: Image, data_by_guid: dic
         matrix = tile_matrix_array[tile["matrix_index"]]
         if matrix["e00"] != 1 or matrix["e11"] != 1:
             affine = (matrix["e00"], matrix["e10"], matrix["e01"], matrix["e11"])
-            sprite = affine_transform(sprite, affine)
+            sprite = apply_simple_affine_transform(sprite, affine)
 
         new_image.alpha_composite(sprite, (tile['pos']['x'] * size_tile_x, abs(tile['pos']['y']) * size_tile_y))
 
-    write_in_file_end(save_path.with_name("errors.log"), log_list)
+    if log_list:
+        write_in_file_end(save_path / "errors.log", log_list)
 
     return new_image
 
@@ -144,7 +142,7 @@ def create_tilemap(
     save_folder.mkdir(parents=True, exist_ok=True)
 
     print(f"Started generating tilemap layers for {tilemap_name}")
-    clear_file(save_folder / "errors.log")
+    delete_file(save_folder / "errors.log")
     timeit = Timeit()
 
     size_map_x, size_map_y = 0, 0
@@ -159,23 +157,14 @@ def create_tilemap(
         return image_new(mode="RGBA", size=(size_map_x * size_tile_x, size_map_y * size_tile_y))
 
     total_map_size = size_map_x * size_map_y
-    is_concurrent = total_map_size < 100_000
-    print(f"Tilemap size: x={size_map_x}, y={size_map_y}; total={total_map_size}, {is_concurrent=}")
+    print(f"Tilemap size: x={size_map_x}, y={size_map_y}; total={total_map_size}")
 
     args_create_tilemap = (
         (tilemap, get_transparent_image(), meta_data, save_folder / f"{save_file}-Layer-{i}.png")
         for i, tilemap in enumerate(tilemaps)
     )
 
-    tilemap_layers = run_multiprocess(__create_tilemap_image, args_create_tilemap,
-                                      is_multiprocess=False, is_generator=not is_concurrent)
-
-    if is_concurrent:
-        args_save_tilemap_layers = (
-            (tilemap_layer, save_folder / f"{save_file}-Layer-{i}.png")
-            for i, tilemap_layer in enumerate(tilemap_layers)
-        )
-        run_concurrent_sync(__save_image, args_save_tilemap_layers)
+    tilemap_layers = itertools.starmap(__create_tilemap_image, args_create_tilemap)
 
     print(f"Finished generation for tilemap layers {tilemap_name} ({timeit:.2f} sec)")
 
@@ -184,26 +173,16 @@ def create_tilemap(
 
     im_map = get_transparent_image()
 
-    if is_concurrent:
-        save_composite = []
-        for i, layer in enumerate(tilemap_layers):
-            func_progress_bar_set_percent(i, count_layers - 1)
+    for i, layer in enumerate(tilemap_layers):
+        func_progress_bar_set_percent(i, count_layers - 1)
 
-            if i in exclude_layers:
-                continue
+        to_save = [(layer, save_folder / f"{save_file}-Layer-{i}.png")]
+
+        if i not in exclude_layers:
             im_map.alpha_composite(layer)
-            save_composite.append((im_map.copy(), save_folder / f"{save_file}-{i}.png"))
+            to_save.append((im_map, save_folder / f"{save_file}-{i}.png"))
 
-        run_concurrent_sync(__save_image, save_composite)
-    else:
-        for i, layer in enumerate(tilemap_layers):
-            func_progress_bar_set_percent(i, count_layers - 1)
-
-            __save_image(layer.copy(), save_folder / f"{save_file}-Layer-{i}.png")
-            if i in exclude_layers:
-                continue
-            im_map.alpha_composite(layer)
-            __save_image(im_map.copy(), save_folder / f"{save_file}-{i}.png")
+        starmap_multithread(__save_image, to_save)
 
     print(f"Finished generation for tilemap {tilemap_name} ({timeit:.2f} sec)")
 
@@ -243,8 +222,8 @@ if __name__ == "__main__":
             sprite1 = __resize_sprite_for_tile(sprite1, sprite_data, size_tile)
             sprite2 = __resize_sprite_for_tile(sprite2, sprite_data, size_tile)
 
-            sprite1 = affine_transform(sprite1, aff1)
-            sprite2 = affine_transform(sprite2, aff2)
+            sprite1 = apply_simple_affine_transform(sprite1, aff1)
+            sprite2 = apply_simple_affine_transform(sprite2, aff2)
 
             sprite1.save(save_folder.joinpath(f"{tile_id}-1_{i}.png"))
             sprite2.save(save_folder.joinpath(f"{tile_id}-2_{i}.png"))
@@ -254,7 +233,7 @@ if __name__ == "__main__":
 
     def __profile():
         from tkinter import filedialog as fd
-        from Source.Config.config import DLC, Game
+        from Source.Config.config import Game
         from Source.Utility.constants import GAME_OBJECT
         MetaDataHandler.load(Game.VS)
 

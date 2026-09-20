@@ -5,13 +5,14 @@ from pathlib import Path
 from tkinter import Image
 from tkinter.messagebox import showerror
 
-from PIL.Image import Image, open as image_open
+from PIL import Image as PILImage
+from PIL.Image import Image
 
 from Source.Config.config import DLC, Config, Game
 from Source.Utility.constants import RESOURCES, TEXTURE_2D, TEXT_ASSET, GAME_OBJECT, PREFAB_INSTANCE, AUDIO_CLIP, \
     MONO_BEHAVIOUR, DATA_MANAGER_SETTINGS, BUNDLE_MANIFEST_DATA, MATERIAL, ROOT_FOLDER, VERSION_DATA
 from Source.Utility.image_functions import crop_image_rect_left_bot, split_name_count, get_rects_by_sprite_list
-from Source.Utility.multirun import run_multiprocess_single
+from Source.Utility.multirun import map_multiprocess, starmap_multiprocess, map_multithread
 from Source.Utility.special_classes import Objectless, Emitter
 from Source.Utility.sprite_data import SpriteData, AnimationData, SKIP_ANIM_NAMES_LIST
 from Source.Utility.timer import Timeit
@@ -24,15 +25,14 @@ def _get_meta_guid(path: Path) -> tuple[str | None, Path]:
         return None, path
 
     with open(path, 'r', encoding="UTF-8") as f:
-        for i, line in enumerate(f.readlines()):
+        for i, line in enumerate(f):
             if "guid" in line:
-                key, val = line.split(":")
-
+                key, val = line.split(":", 1)
                 if key.strip() == "guid":
                     return val.strip(), path
-
             if i > 3:
-                return None, path
+                break
+
         return None, path
 
 
@@ -134,7 +134,7 @@ def _get_meta(meta_path: Path) -> MetaData:
     meta_path_name = meta_path.name
     print(f"Started parsing {meta_path_name}")
     image_path = meta_path.with_suffix("")
-    image = image_open(image_path)
+    image = PILImage.open(image_path)
 
     doc = UnityDoc.yaml_parse_file(meta_path)
     entry = doc.entry
@@ -194,6 +194,10 @@ def _get_meta(meta_path: Path) -> MetaData:
     print(f"Finished parsing {meta_path_name} [{guid=}] {timeit!r}")
 
     return MetaData(name, meta_path_name, guid, image, prepared_data_name, prepared_data_id)
+
+
+def _rglob(_root_path: Path, _file_name: str) -> list[Path]:
+    return list(_root_path.rglob(f"{_file_name}*.meta", case_sensitive=False))
 
 
 class MetaDataHandler(Emitter, Objectless):
@@ -279,12 +283,17 @@ class MetaDataHandler(Emitter, Objectless):
                     (MONO_BEHAVIOUR, VERSION_DATA),
                 ])
 
-                path_roots.extend([(MONO_BEHAVIOUR, to_pascalcase(dlc.value.code_name)) for dlc in DLC.get_all_types_by_game(game)])
+                path_roots.extend(
+                    [(MONO_BEHAVIOUR, to_pascalcase(dlc.value.code_name)) for dlc in DLC.get_all_types_by_game(game)])
 
+        path_name_for_search = []
         for root, file_name in path_roots:
-            path = Config.get_assets_dir(cls.loaded_game) and Config.get_assets_dir(cls.loaded_game) / root
-            if path and path.exists():
-                cls._found_files.extend(path.rglob(f"{file_name}*.meta", case_sensitive=False))
+            root_path = Config.get_assets_dir(cls.loaded_game) / root
+            if root_path.exists():
+                path_name_for_search.append((root_path, file_name))
+
+        paths = starmap_multiprocess(_rglob, path_name_for_search)
+        cls._found_files = [path for roots in paths for path in roots]
 
         ### load additional paths
         path = Config.get_project_settings_dir(cls.loaded_game)
@@ -320,8 +329,7 @@ class MetaDataHandler(Emitter, Objectless):
         if not cls._assets_guid_path:
             print("Started collecting guid of every asset")
             timeit = Timeit()
-            # guid_path = run_concurrent_sync(_get_meta_guid, cls._found_files)
-            guid_path = run_multiprocess_single(_get_meta_guid, cls._found_files)
+            guid_path = map_multithread(_get_meta_guid, cls._found_files)
             cls._assets_guid_path.update(guid_path)
             print(f"Finished collecting guid of every asset ({timeit:.2f} sec)")
 
@@ -404,7 +412,7 @@ class MetaDataHandler(Emitter, Objectless):
 
         if not_loaded_name_set:
             paths = [cls.get_path_by_name(name) for name in not_loaded_name_set]
-            loaded_data: list[MetaData] = run_multiprocess_single(_get_meta, paths, is_multiprocess=is_multiprocess)
+            loaded_data: list[MetaData] = map_multiprocess(_get_meta, paths, is_multiprocess=is_multiprocess)
 
             for data_file in loaded_data:
                 cls.loaded_assets_meta.update({
@@ -433,7 +441,7 @@ class MetaDataHandler(Emitter, Objectless):
 
         if not_loaded_guid_set:
             paths = [cls.get_path_by_guid(guid) for guid in not_loaded_guid_set]
-            loaded_data: list[MetaData] = run_multiprocess_single(_get_meta, paths, is_multiprocess=is_multiprocess)
+            loaded_data: list[MetaData] = map_multiprocess(_get_meta, paths, is_multiprocess=is_multiprocess)
 
             for data_file in loaded_data:
                 cls.loaded_assets_meta.update({

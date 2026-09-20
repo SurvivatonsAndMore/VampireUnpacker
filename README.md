@@ -1,7 +1,7 @@
 * [Vampire Survivors Files](https://github.com/SurvivatonsAndMore/VampireSurvivorsFiles)
 * [Vampire Crawlers Files](https://github.com/SurvivatonsAndMore/VampireCrawlersFiles)
 
-# Unpacker (v0.18.1) - Data manager and Image generator
+# Unpacker (v0.19.0) - Data manager and Image generator
 
 Run [unpacker.py](unpacker.py) with [run.bat](run.bat). It can unpack images, get language strings and split them to
 different files and languages, unpack images based on data files and make them with unified names, making (almost
@@ -44,10 +44,7 @@ Using [AssetRipper](https://github.com/AssetRipper/AssetRipper) (v1.3.8+; latest
 | ASSETS_'*game*'        | Path to folder with ripped assets.<br/>Used by AssetRipper as _writable_. (removes **EVERYTHING** when ripping)<br/>Used by Unpacker as _readable_. |
 | DATA_'*game*'          | Path to folder for processed and dumped data by Unpacker.<br/>Used by Unpacker as _writable_.                                                       |
 | AS_RIPPER              | Path to folder with AssetRipper.<br/>Used by AssetRipper as _writable_ and _readable_.<br/>(Writes needed settings file for Ripper. Runs Ripper)    |
-| Enable multiprocessing | Check that can increase speed in some cases in exchange for "heavily" loading CPU.<br/>(and possibility of overflowing memory for very big files)   |
 
-* Enable multiprocessing currently for: _Get stage tilemap_, _Get unified audio_, _Some necessary data processing
-  (Parsing data, lang, metadata, etc.)_.
 
 ### Functions
 

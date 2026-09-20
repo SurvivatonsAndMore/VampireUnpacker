@@ -21,7 +21,6 @@ EXPORTED_PROJECT = "ExportedProject"
 
 
 class CfgKey(StrEnum):
-    MULTIPROCESSING = "MULTIPROCESSING"
     RIPPER = "AS_RIPPER"
 
     ASSETS_VS = "ASSETS_VS"
@@ -45,7 +44,7 @@ class CfgKey(StrEnum):
 
     @classmethod
     def get_non_path_keys(cls) -> set[CfgKey]:
-        return {cls.MULTIPROCESSING}
+        return {}
 
     @classmethod
     def get_assets_keys(cls) -> list[CfgKey]:
@@ -201,7 +200,6 @@ class Config(Objectless):
         # data.update({cfg: Path() for cfg in CfgKey.get_data_path_keys()})
 
         data[CfgKey.RIPPER] = Path()
-        data[CfgKey.MULTIPROCESSING] = False
         return data
 
     @classmethod
@@ -257,10 +255,6 @@ class Config(Objectless):
         return i and i != Path()
 
     @classmethod
-    def get_multiprocessing(cls) -> bool:
-        return cls[CfgKey.MULTIPROCESSING]
-
-    @classmethod
     def get_assets_dir(cls, game: Game) -> Path:
         return cls[game.value.assets_folder] / EXPORTED_PROJECT / ASSETS
 
@@ -305,7 +299,8 @@ class Config(Objectless):
 
             ttk.Label(self, text="Select path where to save ripped assets.").pack()
             ttk.Label(self, text="!! When ripping all data in selected folder WILL BE REMOVED !!").pack()
-            ttk.Label(self).pack()
+
+            ttk.Separator(self, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=5)
 
             def select_folder(variable: tk.StringVar) -> Callable[[], None]:
                 def _in_func():
@@ -331,8 +326,6 @@ class Config(Objectless):
                 match key:
                     case CfgKey.RIPPER:
                         info_text = f"Asset Ripper. Folder must contain 'AssetRipper[...].exe'"
-                    case CfgKey.MULTIPROCESSING:
-                        continue
 
                 tk.Label(self, text=info_text).pack()
 
@@ -347,14 +340,13 @@ class Config(Objectless):
                 ttk.Entry(frame, textvariable=self.variables[key], width=90).pack(side=tk.LEFT)
                 ttk.Button(frame, text="Select folder", command=select_folder(self.variables[key])).pack(side=tk.LEFT)
 
+                if "DATA_" in key:
+                    ttk.Separator(self, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=5)
+
             frame = ttk.Frame(self)
             frame.pack()
 
-            self.variables[CfgKey.MULTIPROCESSING] = tk.BooleanVar(self, Config[CfgKey.MULTIPROCESSING])
-            ttk.Checkbutton(frame, text="Enable multiprocessing for some generators",
-                            variable=self.variables[CfgKey.MULTIPROCESSING]).pack()
-
-            ttk.Button(self, text="Check paths and/or Save", command=self.try_save).pack()
+            ttk.Button(self, text="Check paths and/or Save", command=self.try_save).pack(pady=5)
 
         def try_save(self):
             # print({k: v.get() for k, v in self.variables.items()})

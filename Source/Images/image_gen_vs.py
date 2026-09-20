@@ -40,7 +40,7 @@ KEY_ID = "_key_id"
 ADD_TO_PATH_ENTRY = "_add_to_path_entry"
 UNIQUE_SHORT_CHARACTER_NAME = "_unique_short_character_name"
 FULL_CHARACTER_NAME = "_full_character_name"
-SKIN_INDEX = "_skin_index"
+DEFAULT = "DEFAULT"
 
 FONT_FILE_PATH = to_source_path(IMAGES_FOLDER) / "Courier.ttf"
 
@@ -371,8 +371,9 @@ class BaseImageGenerator:
     def get_frame_name(self, entry: dict[str, Any]) -> str:
         return entry.get(self.key_frame_name, self.default_frame_name).replace(".png", "")
 
-    def get_textures_set(self) -> set[str]:
-        textures_set = {entry.get(self.key_main_texture_name) for entry in self.entries}
+    def get_textures_set(self, entries: list[dict[str, Any]] = None) -> set[str]:
+        entries = entries or self.entries
+        textures_set = {entry.get(self.key_main_texture_name) for entry in entries}
         textures_set.add(UI)
         return textures_set
 
@@ -507,7 +508,7 @@ class ArcanaImageGenerator(BaseImageGenerator):
             })
         return entry
 
-    def get_textures_set(self) -> set[str]:
+    def get_textures_set(self, entries: list[dict[str, Any]] = None) -> set[str]:
         textures_set = super().get_textures_set()
         textures_set.update({entry.get(self.key_secondary_texture_name) for entry in self.entries})
         return textures_set
@@ -760,10 +761,10 @@ class CharacterImageGenerator(ListBaseImageGenerator):
 
         self.base_entries = self.entries.copy()
         self.skin_entries = self.get_skin_entries(self.entries)
-        self.entries = list(filter(lambda x: x.get(SKIN_INDEX, 0) == 0, self.skin_entries))
+        self.entries = list(filter(lambda x: x.get(SKIN_TYPE, DEFAULT) == DEFAULT, self.skin_entries))
 
-    def get_textures_set(self) -> set[str]:
-        textures_set = super().get_textures_set()
+    def get_textures_set(self, entries: list[dict[str, Any]] = None) -> set[str]:
+        textures_set = super().get_textures_set(self.skin_entries)
         textures_set.update({entry.get(self.key_secondary_texture_name) for entry in self.skin_entries})
         return textures_set
 
@@ -852,12 +853,12 @@ class CharacterImageGenerator(ListBaseImageGenerator):
             if not char_skins:
                 char_skins = [entry]
 
-            for skin_index, skin in enumerate(char_skins):
+            for skin in char_skins:
                 skin_entry = dict(**entry)
                 skin_entry.update(skin)
 
                 lang_entry = self.lang_data and self.lang_data.get(key_id) or {}
-                skin_type = skin_entry.get(SKIN_TYPE)
+                skin_type = skin_entry.get(SKIN_TYPE, DEFAULT)
                 skin_lang_entry = self.lang_skin_data and self.lang_skin_data.get(skin_type) or {}
 
                 prefix = language_vs.get_lang_value(skin_lang_entry, PREFIX) \
@@ -876,7 +877,7 @@ class CharacterImageGenerator(ListBaseImageGenerator):
                     SURNAME: surname or "",
                     SUFFIX: suffix or "",
                     FULL_CHARACTER_NAME: " ".join(filter(None, [prefix, char_name, surname, suffix])),
-                    SKIN_INDEX: skin_index
+                    SKIN_TYPE: skin_type
                 })
                 skin_entries.append(skin_entry)
 
