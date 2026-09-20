@@ -46,10 +46,11 @@ def apply_simple_affine_transform(image: Image, matrix: tuple[int, int, int, int
 
     return image
 
+_TRAILING_DIGITS = re.compile(r"\d+$")
 
 def split_name_count(name: str) -> tuple[str, int]:
     name = str(name)
-    count = re.search(r"\d+$", name)
+    count = _TRAILING_DIGITS.search(name)
 
     if not count:
         return name, -1
@@ -155,14 +156,18 @@ def make_image_black(image: Image, threshold: int = 10) -> Image:
 def get_wrapped_text(
         text: str,
         font_path: Path,
-        text_size: tuple[int, int],
+        bounds_size: tuple[int, int],
         min_max_font_size: tuple[int, int],
-) -> ImageText:
-    text_width, text_height = text_size
+) -> ImageText.Text:
+    text_width, text_height = bounds_size
     min_size, max_size = min_max_font_size
     font = ImageFont.truetype(font_path, max_size)
 
     image_text = ImageText.Text(text, font)
+
+    if text_height == 0:
+        text_height = int(image_text.get_bbox()[3])
+
     image_text.wrap(text_width, text_height, scaling=("shrink", min_size))
 
     # bug workaround until fixed https://github.com/python-pillow/Pillow/pull/10025

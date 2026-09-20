@@ -29,31 +29,45 @@ def normalize_str(s: Path | str) -> str:
     return str(int(s) if s.isnumeric() else s)
 
 
+_SINGLE_LINE_COMMENT = re.compile(r"\s*//.*\n")
+_MULTI_LINE_COMMENT = re.compile(r"(?s)/\*.*?\*/")
+
+
 def clean_comments_json(string: str) -> str:
     # comments: //
-    string = re.sub(r"\s*//.*\n", "\n", string)
+    string = _SINGLE_LINE_COMMENT.sub("\n", string)
     # comments: /* */
-    string = re.sub(r"(?s)/\*.*?\*/", "", string)
+    string = _MULTI_LINE_COMMENT.sub("", string)
     return string
+
+
+_BRACES_COMMA = re.compile(r",([ \t\r\n]+)}")
+_BRACKETS_COMMA = re.compile(r",([ \t\r\n]+)]")
 
 
 def clean_commas_json(string: str) -> str:
     # extra commas
-    string = re.sub(r",([ \t\r\n]+)}", r"\1}", string)
-    string = re.sub(r",([ \t\r\n]+)]", r"\1]", string)
+    string = _BRACES_COMMA.sub(r"\1}", string)
+    string = _BRACKETS_COMMA.sub(r"\1]", string)
     return string
+
+
+_ACF_VALUE_COLON = re.compile(r"\"([ \t\r\n]+){")
+_ACF_OBJECT_COLON = re.compile(r"\"\t\t\"")
+_ACF_VALUE_COMMA = re.compile(r"\"(\n[ \t\r\n]+)\"")
+_ACF_OBJECT_COMMA = re.compile(r"}(\n[ \t\r\n]+)\"")
 
 
 def acf_to_json(string: str) -> str:
     string = string.replace('"AppState"\n', "")
     # add : after key for object
-    string = re.sub(r"\"([ \t\r\n]+){", r'":\1{', string)
+    string = _ACF_VALUE_COLON.sub(r'":\1{', string)
     # add : after key for value
-    string = re.sub(r"\"\t\t\"", "\":\t\t\"", string)
+    string = _ACF_OBJECT_COLON.sub("\":\t\t\"", string)
     # add , after value
-    string = re.sub(r"\"(\n[ \t\r\n]+)\"", r'",\1"', string)
+    string = _ACF_VALUE_COMMA.sub(r'",\1"', string)
     # add , after object
-    string = re.sub(r"}(\n[ \t\r\n]+)\"", r'},\1"', string)
+    string = _ACF_OBJECT_COMMA.sub(r'},\1"', string)
     return string
 
 
@@ -61,9 +75,10 @@ def clean_all_json(string: str) -> str:
     string = clean_comments_json(string)
     return clean_commas_json(string)
 
+_UNDERSCORES_OR_DASHES = re.compile(r"([_\-])+")
 
 def to_pascalcase(s):
-    return re.sub(r"([_\-])+", " ", s).title().replace(" ", "").replace("*", "")
+    return _UNDERSCORES_OR_DASHES.sub(" ", s).title().replace(" ", "").replace("*", "")
 
 
 def _find_main_py_file(file_name: str = "unpacker.py") -> Path | None:

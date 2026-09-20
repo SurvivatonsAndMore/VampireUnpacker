@@ -113,6 +113,8 @@ class EntryToSave:
     name_wrapper: Callable[[str], str]
     add_to_path: str | None = None
 
+    _used_mkdir: set[Path] = set()
+
     def __init__(self, name: str, name_wrapper: Callable[[str], str], add_to_path: str | None = None) -> None:
         self.name = name
         self.name_wrapper = name_wrapper
@@ -137,7 +139,10 @@ class EntryToSave:
         if self.add_to_path:
             entry_save_path /= self.add_to_path
 
-        entry_save_path.mkdir(parents=True, exist_ok=True)
+        if entry_save_path not in EntryToSave._used_mkdir:
+            entry_save_path.mkdir(parents=True, exist_ok=True)
+            EntryToSave._used_mkdir.add(entry_save_path)
+
         self._save(entry_save_path / self.name_wrapper(self.name), scale)
 
     def _save(self, save_file_path: Path, scale: int) -> None:
@@ -168,7 +173,7 @@ class SpriteEntryToSave(ImageEntryToSave):
 
 class ImageGeneratorManager:
     @staticmethod
-    def get_gen(data_type: DataType) -> "BaseImageGenerator".__class__ | None:
+    def get_gen(data_type: DataType) -> type[BaseImageGenerator] | None:
         match data_type:
             case DataType.ACHIEVEMENT:
                 return None
@@ -246,6 +251,9 @@ def gen_unified_images(dlc_type: DLC | COMPOUND_DATA_TYPE, data_type: DataType,
     return save_path
 
 
+_UNSAVABLE_CHARACTERS = re.compile(r'[<>:/|\\?*\"]')
+
+
 class BaseImageGenerator:
     _available_gens: list[GenType] = [GenType.IMAGE, GenType.IMAGE_FRAME]
 
@@ -274,16 +282,17 @@ class BaseImageGenerator:
         self.lang_data = lang_data_full and lang_data_full.get_lang(Lang.EN) or {}
 
         self.requested_gens = requested_gen_types
+        self.scale: int = self.requested_gens[GenType.IMAGE]
         self._set_entries()
         self.meta_data = MetaDataHandler.get_meta_dict_by_name_set_fullest(self.get_textures_set())
 
-        print(self.meta_data)
+        # print(self.meta_data)
 
         for texture_name, meta_data in self.meta_data.items():
             meta_data.init_sprites()
             if (GenType.ANIM in self.requested_gens
                     or GenType.ANIM_DEATH in self.requested_gens
-                    or GenType.ANIM in self.requested_gens):
+                    or GenType.ANIM_SPECIAL in self.requested_gens):
                 meta_data.init_animations()
 
     def _set_entries(self):
@@ -301,11 +310,9 @@ class BaseImageGenerator:
             required_gen_types: set[GenType],
             func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT
     ):
-        for req in required_gen_types:
-            if not self.requested_gens.get(req):
-                return
+        if not all(self.requested_gens.get(req) for req in required_gen_types):
+            return
 
-        scale = self.requested_gens[GenType.IMAGE]
         total_len = len(entries)
 
         for i, entry in enumerate(entries):
@@ -313,7 +320,7 @@ class BaseImageGenerator:
 
             out_entry = gen_function(entry)
             if out_entry:
-                out_entry.save_entry(save_path, entry, scale, add_to_path=add_to_path)
+                out_entry.save_entry(save_path, entry, self.scale, add_to_path=add_to_path)
 
     def main_generator(self, dlc_type: DLC | COMPOUND_DATA_TYPE, data_type: DataType,
                        func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT) -> Path | None:
@@ -346,7 +353,7 @@ class BaseImageGenerator:
         return cls._available_gens
 
     def get_save_name(self, name: str) -> str:
-        return re.sub(r'[<>:/|\\?*\"]', '', name.strip())
+        return _UNSAVABLE_CHARACTERS.sub('', name.strip())
 
     def get_save_image_prefix(self, entry):
         return self.save_image_prefix
@@ -644,7 +651,7 @@ class MusicIconsGenerator(BaseImageGenerator):
         entry = super().get_unit(key_id, entry)
 
         add_to_path = ""
-        check = entry.get("source").lower() or entry.get("title").lower()
+        check = (entry.get("source") or entry.get("title") or "").lower()
         if "castlevania" in check:
             add_to_path = entry.get("source")
         if "vampire survivors" in check:
@@ -731,11 +738,16 @@ class CharacterImageGenerator(ListBaseImageGenerator):
     default_frame_name = "CharacterSelectFrame.png"
     default_stroke_width = 0.7
 
+    _weapon_image_gen: WeaponImageGenerator = None
+
     def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE, data_type: DataType,
                  requested_gen_types: dict[GenType, int | bool]):
         super().__init__(dlc_type, data_type, requested_gen_types)
 
-        self.weapon_image_gen = WeaponImageGenerator(COMPOUND_DATA, DataType.WEAPON, {GenType.IMAGE: 1})
+        if not CharacterImageGenerator._weapon_image_gen:
+            CharacterImageGenerator._weapon_image_gen = WeaponImageGenerator(COMPOUND_DATA, DataType.WEAPON,
+                                                                             {GenType.IMAGE: 1})
+
         if requested_gen_types.get(GenType.IMAGE_FRAME):
             self.frame_image = image_open(to_source_path(IMAGES_FOLDER) / self.default_frame_name)
 
@@ -909,7 +921,7 @@ class CharacterImageGenerator(ListBaseImageGenerator):
             key_id = entry.get(KEY_ID)
 
             if (weapon_id := entry.get("startingWeapon")) and weapon_id not in ["VOID", "0", 0, None]:
-                weapon_lang_data = self.weapon_image_gen.lang_data
+                weapon_lang_data = CharacterImageGenerator._weapon_image_gen.lang_data
                 weapon_lang = language_vs.get_lang_value(weapon_lang_data, weapon_id, 'name')
 
                 if weapon_lang is None:
@@ -955,12 +967,13 @@ class CharacterImageGenerator(ListBaseImageGenerator):
         frame_image = self.frame_image.copy()
 
         if (weapon_id := entry.get("startingWeapon")) and weapon_id not in ["VOID", "0", 0, None]:
-            weapon_data = self.weapon_image_gen.data_file.data().get(weapon_id)
+            weapon_image_gen = CharacterImageGenerator._weapon_image_gen
+            weapon_data = weapon_image_gen.data_file.data().get(weapon_id)
             if weapon_data is None:
                 print(f"Not found weapon [ID={weapon_id}] for character {eng_name}")
                 return None
 
-            weapon_entry = self.weapon_image_gen.gen_image(self.weapon_image_gen.get_unit(weapon_id, weapon_data))
+            weapon_entry = weapon_image_gen.gen_image(weapon_image_gen.get_unit(weapon_id, weapon_data))
 
             if weapon_entry is None:
                 return None
@@ -1062,28 +1075,27 @@ class StageImageGenerator(ListBaseImageGenerator):
         stage_image = resize_image(image_data.sprite, 4)
 
         text = eng_name.strip()
-        base_scale = 50
-        while True:
-            font = ImageFont.truetype(FONT_FILE_PATH, base_scale)
-            w = font.getbbox(text)[2] + 4
-            h = font.getbbox(text + "|")[3]
-            if w + 40 > stage_image.size[0]:
-                base_scale -= 2
-            else:
-                break
 
-        canvas = image_new('RGBA', (int(w), int(h)))
+        image_text = image_functions.get_wrapped_text(
+            text,
+            FONT_FILE_PATH,
+            (stage_image.size[0] - 40, 0),
+            (30, 50)
+        )
+        image_text.stroke(width=self.requested_gens.get(GenType.TEXT_STROKE_WIDTH))
+
+        *_, w, h = image_text.get_bbox()
+        w = int(w)
+        h = int(h)
+
+        canvas = image_new('RGBA', (w, h))
 
         draw = ImageDraw.Draw(canvas)
-        draw.text((3, -5), text, "#eef92b", font, stroke_width=self.requested_gens.get(GenType.TEXT_STROKE_WIDTH))
+        draw.text((w // 2, h // 2), image_text, fill="#eef92b", anchor="mm")
 
-        crx, cry = stage_image.size
-        crx //= 2
-        cry //= 5
-        frx, fry = canvas.size
-        frx //= 2
-        fry //= 2
-        stage_image.alpha_composite(canvas, (crx - frx, cry - fry))
+        im_w, im_h = stage_image.size
+
+        stage_image.alpha_composite(canvas, ((im_w - w) // 2, int(im_h * 0.19) - h // 2))
 
         return ImageEntryToSave(
             stage_image,
@@ -1118,7 +1130,7 @@ class AdventureStageImageGenerator(StageImageGenerator):
 
 
 class GeneratorDialog(tk.Toplevel):
-    def __init__(self, gen: BaseImageGenerator.__class__, parent=None):
+    def __init__(self, gen: type[BaseImageGenerator], parent=None):
         super().__init__(parent)
         self.parent = parent
         self.title("Select settings")

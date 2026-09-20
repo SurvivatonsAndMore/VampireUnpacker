@@ -279,6 +279,9 @@ def _yaml_load_part(i: int, j: int, entry: str) -> tuple[int, int, "UnityEntry"]
     return i, j, yaml.load(entry, UnityLoaderR)
 
 
+_SPACES_AND_DASH = re.compile(r"\s{2,}-")
+_NOT_SPACE = re.compile(r"\S")
+
 def _split_yaml_string(entry_index: int, entry: str) -> list[tuple[int, int, str]]:
     """
     Assumption: Only long part is dictionary in form of " - first: ... second: ... " (m_Tiles)
@@ -286,7 +289,7 @@ def _split_yaml_string(entry_index: int, entry: str) -> list[tuple[int, int, str
 
     FIRST = "- first"
 
-    search = re.search(r"\s{2,}-", entry)
+    search = _SPACES_AND_DASH.search(entry)
     if not search or not search.start() or len(entry) < 1e5:
         return [(entry_index, 0, entry)]
 
@@ -299,10 +302,11 @@ def _split_yaml_string(entry_index: int, entry: str) -> list[tuple[int, int, str
     parse_stage = 0
     with StringIO(entry) as string:
         for line in string.readlines():
+            not_space = _NOT_SPACE.search(line)
             match parse_stage:
                 case 0:
                     if FIRST in line:
-                        dict_indent = re.search(r"\S", line).start()
+                        dict_indent = not_space.start()
                         parse_stage = 1
                         dict_entry += line
                         continue
@@ -313,7 +317,7 @@ def _split_yaml_string(entry_index: int, entry: str) -> list[tuple[int, int, str
                         if dict_entry:
                             dictionary.append(dict_entry)
                             dict_entry = ""
-                    elif re.search(r"\S", line).start() == dict_indent:
+                    elif not_space.start() == dict_indent:
                         parse_stage = 2
                         footer += line
                         dictionary.append(dict_entry)
