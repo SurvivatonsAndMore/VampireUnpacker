@@ -81,13 +81,15 @@ class MetaData:
             }
 
             for name, sprite_name_list in anim_frames.items():
-                sprite_list = [self.data_name.get(sprite) for sprite in sprite_name_list]
+                sprite_list = [self.data_name[sprite] for sprite in sprite_name_list]
                 rect_list = get_rects_by_sprite_list(sprite_list)
 
-                anim_data = AnimationData(name,
-                                          sprite_name_list,
-                                          rect_list,
-                                          [s.sprite for s in sprite_list])
+                anim_data = AnimationData(
+                    name,
+                    sprite_name_list,
+                    rect_list,
+                    [s.sprite for s in sprite_list]
+                )
 
                 if len(anim_data) > 1:
                     for sprite_name in sprite_name_list:
@@ -110,7 +112,7 @@ class MetaData:
 
 
 class ExactMetaData(MetaData):
-    fileID: int = None
+    fileID: int
 
     @property
     def sprite_data(self) -> SpriteData:
@@ -139,12 +141,12 @@ def _get_meta(meta_path: Path) -> MetaData:
     doc = UnityDoc.yaml_parse_file(meta_path)
     entry = doc.entry
 
-    internal_id_to_name_table = entry["TextureImporter"]["internalIDToNameTable"]
-    sprites_data = entry["TextureImporter"]["spriteSheet"]["sprites"]
+    internal_id_to_name_table = entry.get("TextureImporter")["internalIDToNameTable"]
+    sprites_data = entry.get("TextureImporter")["spriteSheet"]["sprites"]
 
     # if single sprite
     if not internal_id_to_name_table and not sprites_data:
-        sprite_sheet = entry["TextureImporter"]["spriteSheet"]
+        sprite_sheet = entry.get("TextureImporter")["spriteSheet"]
         internal_id = sprite_sheet['internalID']
         internal_id_to_name_table = [{'first': {0: internal_id}}]
         sprites_data = [{
@@ -188,7 +190,7 @@ def _get_meta(meta_path: Path) -> MetaData:
             internal_id: prepared_data_entry
         })
 
-    guid = entry['guid']
+    guid = entry.get('guid')
     name = normalize_str(meta_path_name)
 
     print(f"Finished parsing {meta_path_name} [{guid=}] {timeit!r}")
@@ -420,7 +422,7 @@ class MetaDataHandler(Emitter, Objectless):
                     data_file.guid: data_file,
                 })
 
-        return {cls.loaded_assets_meta.get(name) for name in normalized_set}
+        return {cls.loaded_assets_meta[name] for name in normalized_set}
 
     @classmethod
     def get_meta_dict_by_name_set(cls, name_set: set, is_multiprocess=True) -> dict[str, MetaData]:
@@ -449,7 +451,7 @@ class MetaDataHandler(Emitter, Objectless):
                     data_file.guid: data_file,
                 })
 
-        return {cls.loaded_assets_meta.get(guid) for guid in guid_set}
+        return {cls.loaded_assets_meta[guid] for guid in guid_set}
 
     @classmethod
     def get_meta_dict_by_guid_set(cls, guid_set: set, is_multiprocess=True) -> dict[str, MetaData]:
@@ -459,12 +461,12 @@ class MetaDataHandler(Emitter, Objectless):
         }
 
     @classmethod
-    def get_meta_by_name(cls, name: str, is_multiprocess=True) -> MetaData:
+    def get_meta_by_name(cls, name: str, is_multiprocess=True) -> MetaData | None:
         meta_data = cls.get_meta_by_name_set({name}, is_multiprocess)
         return meta_data.pop() if meta_data else None
 
     @classmethod
-    def get_meta_by_guid(cls, guid: str, is_multiprocess=True) -> MetaData:
+    def get_meta_by_guid(cls, guid: str, is_multiprocess=True) -> MetaData | None:
         meta_data = cls.get_meta_by_guid_set({guid}, is_multiprocess)
         return meta_data.pop() if meta_data else None
 
@@ -500,7 +502,7 @@ class MetaDataHandler(Emitter, Objectless):
         return meta_dict
 
     @classmethod
-    def get_meta_by_name_fullest(cls, name: str, is_multiprocess=True) -> MetaData:
+    def get_meta_by_name_fullest(cls, name: str, is_multiprocess=True) -> MetaData | None:
         meta_data = cls.get_meta_dict_by_name_set_fullest({name}, is_multiprocess)
         return list(meta_data.values())[0] if meta_data else None
 

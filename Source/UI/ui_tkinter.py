@@ -1,17 +1,14 @@
 import os
 import sys
-from pathlib import Path
-from typing import Iterable, Callable, Any
-
 import tkinter as tk
+from pathlib import Path
 from tkinter import simpledialog, messagebox, filedialog, ttk
+from typing import Iterable, Callable
 
-from Source.Config.config import Game, DLC, Config, CfgKey
+from Source.Config.config import Game, Config
 from Source.Data.meta_data import MetaDataHandler
-from Source.Data import data_vc
-from Source.Translations import language_vc
-from Source.UI.ui import UIBase
 from Source.UI.boxes_tkinter import CheckBoxes, ButtonsBox
+from Source.UI.ui import UIBase
 from Source.Utility.constants import IS_DEBUG, ROOT_FOLDER
 from Source.Utility.logger import Logger
 
@@ -30,7 +27,7 @@ class UITkinter(tk.Tk, UIBase):
     def __init__(self, width=600, height=400):
         sys.stdout = Logger(sys.stdout)
         sys.stderr = Logger(sys.stderr)
-        IS_DEBUG and print(f"{IS_DEBUG = }\n")
+        if IS_DEBUG: print(f"{IS_DEBUG = }\n")
 
         ###
         UIBase.__init__(self)
@@ -43,8 +40,8 @@ class UITkinter(tk.Tk, UIBase):
         self.title(self._title_text)
         self.iconphoto(True, tk.PhotoImage(file=self._icon_path, master=self))
 
-        self.__update_progress_bar: Callable[[int | float, str, str], None] = None
-        self.__update_loaded_metadata: Callable[[Game.VS], None] = None
+        self.__update_progress_bar: Callable[[int | float, str, str], None] = lambda x,y,z: None
+        self.__update_loaded_metadata: Callable[[Game.VS], None] = lambda x: None
 
         self._main_frame = ttk.Frame(self)
         self.set_main_layout()
@@ -341,42 +338,42 @@ class UITkinter(tk.Tk, UIBase):
         ).grid(row=0, column=1)
 
     @staticmethod
-    def ask_open_file_name(title: str = "Select file", initialdir: set | os.PathLike[str] = None,
-                           filetypes: Iterable[tuple[str, str | list[str]]] = None) -> Path | None:
+    def ask_open_file_name(title: str = "Select file", initialdir: str | os.PathLike[str] | None = None,
+                           filetypes: Iterable[tuple[str, str | list[str]]] | None = None) -> Path | None:
         _path = filedialog.askopenfilename(initialdir=initialdir, title=title, filetypes=filetypes)
         return Path(_path) if _path else None
 
     @staticmethod
-    def ask_open_file_names(title: str = "Select file", initialdir: set | os.PathLike[str] = None,
-                            filetypes: Iterable[tuple[str, str | list[str]]] = None) -> list[Path] | None:
+    def ask_open_file_names(title: str = "Select file", initialdir: str | os.PathLike[str] | None = None,
+                            filetypes: Iterable[tuple[str, str | list[str]]] | None = None) -> list[Path] | None:
         _paths = filedialog.askopenfilenames(initialdir=initialdir, title=title, filetypes=filetypes)
         return [Path(p) for p in _paths] if _paths else None
 
     @staticmethod
-    def ask_yes_no(title: str = None, message: str = None, **options) -> bool:
+    def ask_yes_no(title: str | None = None, message: str | None = None, **options) -> bool:
         return tk.messagebox.askyesno(title, message, **options)
 
     @staticmethod
-    def ask_integer(title: str = None,
-                    prompt: str = None,
+    def ask_integer(title: str | None,
+                    prompt: str,
                     *,
-                    initialvalue: int = None,
-                    minvalue: int = None,
-                    maxvalue: int = None,
-                    **options) -> int:
+                    initialvalue: int | None = None,
+                    minvalue: int | None = None,
+                    maxvalue: int | None = None,
+                    **options) -> int | None:
         return tk.simpledialog.askinteger(title, prompt, initialvalue=initialvalue, minvalue=minvalue,
                                           maxvalue=maxvalue, **options)
 
     @staticmethod
-    def show_info(title: str = None, message: str = None, **options) -> None:
+    def show_info(title: str | None = None, message: str | None = None, **options) -> None:
         tk.messagebox.showinfo(title, message, **options)
 
     @staticmethod
-    def show_warning(title: str = None, message: str = None, **options) -> None:
+    def show_warning(title: str | None = None, message: str | None = None, **options) -> None:
         tk.messagebox.showwarning(title, message, **options)
 
     @staticmethod
-    def show_error(title: str = None, message: str = None, **options) -> None:
+    def show_error(title: str | None = None, message: str | None = None, **options) -> None:
         tk.messagebox.showerror(title, message, **options)
 
     def progress_bar_set_percent(self, current: int | float, total: int | float, add_text: str = "") -> None:

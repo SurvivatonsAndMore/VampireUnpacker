@@ -8,7 +8,7 @@ from pydub import AudioSegment
 
 import Source.Data.data_vs as data_module
 import Source.Translations.language_vs as language_vs
-from Source.Config.config import DLC, Config
+from Source.Config.config import DLC
 from Source.Data.data_vs import DataType
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
 from Source.Translations.language_utils import Lang
@@ -154,7 +154,7 @@ def gen_music_tracks(
         music_dlc: DLC | COMPOUND_DATA_TYPE,
         save_name_types: set[AudioSaveType],
         func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT
-) -> tuple[str | None, None | str]:
+) -> tuple[str, None] | tuple[None, str]:
     save_name_types.add(AudioSaveType.CODE_NAME)
 
     f_path = to_current_game_path(AUDIO_FOLDER)

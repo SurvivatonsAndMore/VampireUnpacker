@@ -6,18 +6,18 @@ from pathlib import Path
 
 import requests
 
-from Source.Config.config import DLC, CfgKey, Config, Game
-from Source.UI.ui import UIBase
-from Source.UI.ui_tkinter import UITkinter
+from req_test import version_to_str, get_ripper_version
+from Source.Config.config import CfgKey, Config, Game
 from Source.Utility.constants import RIPPER_FOLDER, to_source_path
 from Source.Utility.timer import Timeit
+from Source.Utility.popups import ErrorPopup
 
 ripper_port = 56636
 ripper_url = f"http://127.0.0.1:{ripper_port}/"
 
 
-def rip_files(games_to_rip: set[Game], ui_class: UIBase.__class__ = UITkinter):
-    ripper_path = Config[CfgKey.RIPPER]
+def rip_files(games_to_rip: set[Game]):
+    ripper_path: Path = Config[CfgKey.RIPPER]
     settings_name = "AssetRipper.Settings.json"
 
     ripper = None
@@ -37,20 +37,17 @@ def rip_files(games_to_rip: set[Game], ui_class: UIBase.__class__ = UITkinter):
     if not ripper:
         _s = "AssetRipper not found"
         print(_s, file=sys.stderr)
-        ui_class.show_error("Ripper Error", _s)
-        return
+        raise ErrorPopup("Ripper Error", _s)
 
     if empty_game_paths := [game for game in games_to_rip if Config[game.value.steam_folder] == Path()]:
         _s = f"Some config paths to steam folders are empty:\n{'\n'.join(map(str, empty_game_paths))}"
-        ui_class.show_error("Ripper Error", _s)
         print(_s, file=sys.stderr)
-        return
+        raise ErrorPopup("Ripper Error", _s)
 
     if empty_asset_paths := [game for game in games_to_rip if Config[game.value.assets_folder] == Path()]:
         _s = f"Some config paths to asset folders are empty:\n{'\n'.join(map(str, empty_asset_paths))}"
-        ui_class.show_error("Ripper Error", _s)
         print(_s, file=sys.stderr)
-        return
+        raise ErrorPopup("Ripper Error", _s)
 
     is_working = True
     try:
@@ -61,7 +58,7 @@ def rip_files(games_to_rip: set[Game], ui_class: UIBase.__class__ = UITkinter):
     if not is_working:
         # copy existing setting, save as 'old' and copy needed settings in folder
         if not ripper_settings:
-            ripper_settings = ripper_path.joinpath(settings_name)
+            ripper_settings = ripper_path / settings_name
             shutil.copy(this_settings, ripper_settings)
 
         else:
@@ -84,6 +81,9 @@ def rip_files(games_to_rip: set[Game], ui_class: UIBase.__class__ = UITkinter):
             except requests.ConnectionError:
                 wait_time *= 2
                 print(f"Ripper is not loaded. Trying reconnect in {wait_time} sec.")
+
+    if ripper_version := get_ripper_version():
+        print(f"Using Ripper version: {version_to_str(ripper_version)}")
 
     for game in sorted(games_to_rip):
         assets_path = Config[game.value.assets_folder]

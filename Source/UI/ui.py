@@ -13,6 +13,7 @@ from Source.Utility import image_functions
 from Source.Utility.constants import to_source_path, IMAGES_FOLDER, GENERATED, COMPOUND_DATA_TYPE, COMPOUND_DATA, \
     DEFAULT_ANIMATION_FRAME_RATE, PREFAB_INSTANCE, GAME_OBJECT, TILEMAPS
 from Source.Utility.popups import ErrorPopup, BasePopup, InfoPopup, WarningPopup
+from Source.Ripper import ripper
 
 
 class UIBase:
@@ -23,39 +24,39 @@ class UIBase:
         self._last_loaded_folder: Path | None = None
 
     @staticmethod
-    def ask_open_file_name(title: str = "Select file", initialdir: set | PathLike[str] = None,
-                           filetypes: Iterable[tuple[str, str | list[str]]] = None) -> Path | None:
+    def ask_open_file_name(title: str = "Select file", initialdir: str | PathLike[str] | None = None,
+                           filetypes: Iterable[tuple[str, str | list[str]]] | None = None) -> Path | None:
         raise NotImplementedError()
 
     @staticmethod
-    def ask_open_file_names(title: str = "Select file", initialdir: set | PathLike[str] = None,
-                            filetypes: Iterable[tuple[str, str | list[str]]] = None) -> list[Path] | None:
+    def ask_open_file_names(title: str = "Select file", initialdir: str | PathLike[str] | None = None,
+                            filetypes: Iterable[tuple[str, str | list[str]]] | None = None) -> list[Path] | None:
         raise NotImplementedError()
 
     @staticmethod
-    def ask_yes_no(title: str = None, message: str = None, **options) -> bool:
+    def ask_yes_no(title: str | None = None, message: str | None = None, **options) -> bool:
         raise NotImplementedError()
 
     @staticmethod
-    def ask_integer(title: str = None,
-                    prompt: str = None,
+    def ask_integer(title: str | None,
+                    prompt: str,
                     *,
-                    initialvalue: int = None,
-                    minvalue: int = None,
-                    maxvalue: int = None,
-                    **options) -> int:
+                    initialvalue: int | None = None,
+                    minvalue: int | None = None,
+                    maxvalue: int | None = None,
+                    **options) -> int | None:
         raise NotImplementedError()
 
     @staticmethod
-    def show_info(title: str = None, message: str = None, **options) -> None:
+    def show_info(title: str | None = None, message: str | None = None, **options) -> None:
         raise NotImplementedError()
 
     @staticmethod
-    def show_warning(title: str = None, message: str = None, **options) -> None:
+    def show_warning(title: str | None = None, message: str | None = None, **options) -> None:
         raise NotImplementedError()
 
     @staticmethod
-    def show_error(title: str = None, message: str = None, **options) -> None:
+    def show_error(title: str | None = None, message: str | None = None, **options) -> None:
         raise NotImplementedError()
 
     def show_popup(self, popup: BasePopup) -> None:
@@ -73,11 +74,11 @@ class UIBase:
     def progress_bar_set_sec(self, seconds: float, add_text: str = "") -> None:
         raise NotImplementedError()
 
-    def check_boxes[T](self, list_to_boxes: Iterable[T], title="", label: str | list[str] = "", width: int = 300) -> \
+    def check_boxes[T](self, list_to_boxes: list[T], title="", label: str | list[str] = "", width: int = 300) -> \
             list[bool]:
         raise NotImplementedError()
 
-    def buttons_box[T](self, list_to_texts: Iterable[T], title="", label: str | list[str] = "",
+    def buttons_box[T](self, list_to_texts: list[T], title="", label: str | list[str] = "",
                        width: int = 300) -> T | None:
         raise NotImplementedError()
 
@@ -91,7 +92,7 @@ class UIBase:
     @staticmethod
     def get_assets_dir(game: Game) -> Path:
         path = Config.get_assets_dir(game)
-        return path.exists() and path or Path()
+        return path if path.exists() else Path()
 
     def dlc_selector(self, game: Game, allow_compound: bool = False) -> DLC | COMPOUND_DATA_TYPE | None:
         all_dlcs = DLC.get_all_types_by_game(game, is_game_sorting=True)
@@ -139,8 +140,11 @@ class UIBase:
             return
 
         print(f"Started ripping files: {games_set}")
-        from Source.Ripper.ripper import rip_files
-        rip_files(games_set, self.__class__)
+
+        try:
+            ripper.rip_files(games_set)
+        except BasePopup as p:
+            self.show_popup(p)
 
         print("Finished ripping files")
         MetaDataHandler.unload()

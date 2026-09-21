@@ -13,7 +13,7 @@ from Source.Utility.popups import ErrorPopup, InfoPopup
 def generate_images_by_meta(
         image_path: Path,
         scale_factor: int = 1,
-        folder_save_path: Path = None,
+        folder_save_path: Path | None = None,
         func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT
 ) -> Path | None:
     file = image_path.name
@@ -46,6 +46,9 @@ def generate_images_by_meta(
     func_progress_bar_set_percent(0, total_len)
 
     for i, (_, sprite_data) in enumerate(data.data_name.items()):
+        if sprite_data.sprite is None:
+            print(f"Sprite {sprite_data.name} not loaded")
+            continue
         sprite = resize_image(sprite_data.sprite, scale_factor)
         sprite.save(folder_save_path / f"{sprite_data.real_name}.png")
 
@@ -60,15 +63,15 @@ def generate_animation_by_meta(
         image_path: Path,
         scale_factor: int = 1,
         frame_rate: int = DEFAULT_ANIMATION_FRAME_RATE,
-        selected_anim_types: list[bool] = None,
-        folder_save_path: Path = None,
+        selected_anim_types: list[bool] | None = None,
+        folder_save_path: Path | None = None,
         func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT
 ) -> Path | None:
     file = image_path.name
 
     if not selected_anim_types or not any(selected_anim_types):
         print("Not selected any animation extension")
-        return
+        return None
 
     if not MetaDataHandler.is_loaded():
         MetaDataHandler.load(Game.SPECIAL)

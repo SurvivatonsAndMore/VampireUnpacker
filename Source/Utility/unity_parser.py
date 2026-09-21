@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from io import StringIO
 from itertools import starmap
 from pathlib import Path
-from typing import TextIO, Callable, Iterable
+from typing import TextIO, Callable, Iterable, Any
 
 import yaml
-from yaml import Node, MappingNode, Loader
+from yaml import Node, MappingNode, Loader, SafeLoader
 from yaml.composer import Composer
 from yaml.constructor import SafeConstructor
 from yaml.parser import Parser
@@ -29,9 +29,7 @@ class UnityEntry:
     className: str
     classID: int
     fileID: int
-    data: dict
-
-    __none: UnityEntry = None
+    data: dict[str, Any]
 
     def __repr__(self):
         m_name = self.data.get('m_Name')
@@ -52,44 +50,42 @@ class UnityEntry:
         return UnityEntry(self.className, self.classID, self.fileID, data)
 
     @classmethod
-    def gen_none(cls):
-        if not cls.__none:
-            cls.__none = UnityEntry("None", 0, 0, {})
-        return cls.__none
+    def gen_none(cls) -> UnityEntry:
+        return UnityEntry("None", 0, 0, {})
 
 
 class UnityReference(dict):
     @property
-    def classID(self):
+    def classID(self) -> int:
         return self.fileID // 100000
 
     @property
-    def fileID(self):
-        return self.get("fileID")
+    def fileID(self) -> int:
+        return self["fileID"]
 
     @property
     def guid(self):
-        return self.get("guid")
+        return self["guid"]
 
     @property
     def type(self):
-        return self.get("type")
+        return self["type"]
 
     def is_valid(self):
-        return self.guid is not None
+        return self.get("guid") is not None
 
     def is_not_found(self):
-        return self.get('_not_found')
+        return self.get('_not_found', False)
 
     def mark_not_found(self):
         self['_not_found'] = True
         return self
 
     def __hash__(self):
-        return hash(self.guid)
+        return hash(self.get("guid"))
 
     def __repr__(self):
-        found = ", <Not found>" if self.get('_not_found') else ""
+        found = ", <Not found>" if self.is_not_found() else ""
         return f"{self.__class__.__name__}(fileID={self.fileID}, guid={self.guid}{found})"
 
 
@@ -197,25 +193,25 @@ class UnityDoc:
         return list(entries)
 
     @staticmethod
-    def yaml_parse_text_smart(text: str, filter_func: Callable[[str], bool] = None) -> UnityDoc:
+    def yaml_parse_text_smart(text: str, filter_func: Callable[[str], bool] | None = None) -> UnityDoc:
         if len(text) < 1e7:
             return UnityDoc.yaml_parse_text(text, filter_func)
         else:
             return UnityDoc.yaml_parse_text_parallel(text, filter_func)
 
     @staticmethod
-    def yaml_parse_io_smart(text_io: TextIO, filter_func: Callable[[str], bool] = None) -> UnityDoc:
-        with text_io as _f:
-            text = _f.read()
+    def yaml_parse_io_smart(text_io: TextIO, filter_func: Callable[[str], bool] | None = None) -> UnityDoc:
+        text = text_io.read()
         return UnityDoc.yaml_parse_text_smart(text, filter_func)
 
     @staticmethod
-    def yaml_parse_file_smart(path: os.PathLike[str], filter_func: Callable[[str], bool] = None) -> UnityDoc:
+    def yaml_parse_file_smart(path: os.PathLike[str] | Path,
+                              filter_func: Callable[[str], bool] | None = None) -> UnityDoc:
         with open(path, "r", encoding="UTF-8") as _f:
             return UnityDoc.yaml_parse_io_smart(_f, filter_func)
 
     @staticmethod
-    def yaml_parse_text(text: str, filter_func: Callable[[str], bool] = None) -> UnityDoc:
+    def yaml_parse_text(text: str, filter_func: Callable[[str], bool] | None = None) -> UnityDoc:
         text_parse = text
 
         if filter_func:
@@ -228,18 +224,17 @@ class UnityDoc:
         return UnityDoc(entries)
 
     @staticmethod
-    def yaml_parse_io(text_io: TextIO, filter_func: Callable[[str], bool] = None) -> UnityDoc:
-        with text_io as _f:
-            text = _f.read()
+    def yaml_parse_io(text_io: TextIO, filter_func: Callable[[str], bool] | None = None) -> UnityDoc:
+        text = text_io.read()
         return UnityDoc.yaml_parse_text(text, filter_func)
 
     @staticmethod
-    def yaml_parse_file(path: os.PathLike[str]) -> UnityDoc:
+    def yaml_parse_file(path: os.PathLike[str] | Path, filter_func: Callable[[str], bool] | None = None) -> UnityDoc:
         with open(path, "r", encoding="UTF-8") as _f:
-            return UnityDoc.yaml_parse_io(_f)
+            return UnityDoc.yaml_parse_io(_f, filter_func)
 
     @staticmethod
-    def yaml_parse_text_parallel(text: str, filter_func: Callable[[str], bool] = None) -> UnityDoc:
+    def yaml_parse_text_parallel(text: str, filter_func: Callable[[str], bool] | None = None) -> UnityDoc:
         unity_tag = "--- "
         text_split = text.split(unity_tag)[1:]
 
@@ -254,23 +249,23 @@ class UnityDoc:
         ### Slowest part
         entries_parts = starmap_multiprocess(_yaml_load_part, text_split_parts, chunksize=4)
 
-        entries: list[UnityEntry | None] = [None] * (entries_parts[-1][0] + 1)
-        for entry_index, part_index, entry in entries_parts:
-            if not entries[entry_index]:
-                entries[entry_index] = entry
+        entries: list[UnityEntry] = []
+        for entry_index, part_index, entry in sorted(entries_parts):
+            if part_index == 0:
+                entries.append(entry)
             else:
                 entries[entry_index].extend_data(entry)
 
         return UnityDoc(entries)
 
     @staticmethod
-    def yaml_parse_io_parallel(text_io: TextIO, filter_func: Callable[[str], bool] = None) -> UnityDoc:
-        with text_io as _f:
-            text = _f.read()
+    def yaml_parse_io_parallel(text_io: TextIO, filter_func: Callable[[str], bool] | None = None) -> UnityDoc:
+        text = text_io.read()
         return UnityDoc.yaml_parse_text_parallel(text, filter_func)
 
     @staticmethod
-    def yaml_parse_file_parallel(path: os.PathLike[str], filter_func: Callable[[str], bool] = None) -> UnityDoc:
+    def yaml_parse_file_parallel(path: os.PathLike[str] | Path,
+                                 filter_func: Callable[[str], bool] | None = None) -> UnityDoc:
         with open(path, "r", encoding="UTF-8") as _f:
             return UnityDoc.yaml_parse_io_parallel(_f, filter_func)
 
@@ -281,6 +276,7 @@ def _yaml_load_part(i: int, j: int, entry: str) -> tuple[int, int, "UnityEntry"]
 
 _SPACES_AND_DASH = re.compile(r"\s{2,}-")
 _NOT_SPACE = re.compile(r"\S")
+
 
 def _split_yaml_string(entry_index: int, entry: str) -> list[tuple[int, int, str]]:
     """
@@ -344,14 +340,10 @@ class UnityParserR(Parser):
     DEFAULT_TAGS.update(Parser.DEFAULT_TAGS)
 
 
-class UnityLoaderR(Reader, Scanner, UnityParserR, Composer, SafeConstructor, Resolver):
+class UnityLoaderR(UnityParserR, SafeLoader):
     def __init__(self, stream):
-        Reader.__init__(self, stream)
-        Scanner.__init__(self)
+        SafeLoader.__init__(self, stream)
         UnityParserR.__init__(self)
-        Composer.__init__(self)
-        SafeConstructor.__init__(self)
-        Resolver.__init__(self)
 
     @staticmethod
     def unity_yaml_constructor(loader: Loader, suffix: str, node: MappingNode | Node):
@@ -364,7 +356,9 @@ class UnityLoaderR(Reader, Scanner, UnityParserR, Composer, SafeConstructor, Res
 
         return UnityEntry(class_name, class_id, file_id, data)
 
+
 yaml.add_multi_constructor('tag:unity3d.com,2011', UnityLoaderR.unity_yaml_constructor, UnityLoaderR)
+
 
 @dataclass
 class UnityDocTree(UnityEntry):

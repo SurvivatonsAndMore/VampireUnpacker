@@ -44,7 +44,7 @@ class CfgKey(StrEnum):
 
     @classmethod
     def get_non_path_keys(cls) -> set[CfgKey]:
-        return {}
+        return set()
 
     @classmethod
     def get_assets_keys(cls) -> list[CfgKey]:
@@ -78,7 +78,7 @@ class Game(Enum):
     JJKRS = GameType(4753290, CfgKey.STEAM_JJKRS, CfgKey.ASSETS_JJKRS, CfgKey.DATA_JJKRS)
 
     SPECIAL = GameType(-1, CfgKey.STEAM_VS, CfgKey.ASSETS_VS, CfgKey.DATA_VS)
-    NONE = None
+    NONE = GameType(-2, CfgKey.STEAM_VS, CfgKey.ASSETS_VS, CfgKey.DATA_VS)
 
     @classmethod
     def get_all_types(cls) -> set[Game]:
@@ -108,7 +108,7 @@ class Game(Enum):
         return self.get_default_dlc().value.full_name
 
     def __lt__(self, other: Game) -> bool:
-        return self.value < other.value
+        return other.value is not None and self.value < other.value
 
 
 @dataclass(order=True, unsafe_hash=True)
@@ -163,12 +163,12 @@ class DLC(Enum):
 
 
 class Config(Objectless):
-    __data: dict[CfgKey, Path | bool] = dict()
+    __data: dict[CfgKey, Path] = dict()
 
     _CONFIG_FILE: Final[Path] = CONFIG_FOLDER / "Config.json"
 
     @classmethod
-    def load(cls):
+    def load(cls) -> None:
         cls.__data = cls._get_default_config()
         if not cls._CONFIG_FILE.exists():
             cls._CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -178,7 +178,7 @@ class Config(Objectless):
             cls.__data = data
 
     @classmethod
-    def _save_config_file(cls):
+    def _save_config_file(cls) -> None:
         with open(cls._CONFIG_FILE, "w", encoding="utf-8") as f:
             f.write(json.dumps({
                 key.value: str(val) if isinstance(val, Path) else val
@@ -187,8 +187,8 @@ class Config(Objectless):
             }, ensure_ascii=False, indent=2))
 
     @staticmethod
-    def _get_default_config():
-        data: dict[CfgKey, Path | bool] = {}
+    def _get_default_config() -> dict[CfgKey, Path]:
+        data: dict[CfgKey, Path] = {}
         data = {
             cfg: Path()
             for game in sorted(Game.get_all_types())
@@ -215,7 +215,7 @@ class Config(Objectless):
                 return key
 
     @classmethod
-    def _load_config(cls):
+    def _load_config(cls) -> None:
         with open(cls._CONFIG_FILE, "r", encoding="UTF-8") as f:
             try:
                 json_file = json.loads(f.read())
@@ -223,26 +223,26 @@ class Config(Objectless):
                 print(e)
                 json_file = dict()
 
-            data = dict()
+            data: dict[CfgKey, Path] = dict()
             for key, val in json_file.items():
                 key_m = cls.migrate_config_key(key)
                 if key_m not in CfgKey:
                     continue
-                data[CfgKey(key_m)] = val if CfgKey(key_m) in CfgKey.get_non_path_keys() else Path(val)
+                data[CfgKey(key_m)] = Path(val)
 
             cls._update_data(data)
 
     @classmethod
-    def _update_data(cls, data: dict[CfgKey, Path | bool]):
+    def _update_data(cls, data: dict[CfgKey, Path]):
         cls.__data.update(data)
 
     @classmethod
-    def get_data(cls) -> dict[CfgKey, Path | bool]:
+    def get_data(cls) -> dict[CfgKey, Path]:
         Config.load()
         return cls.__data
 
-    def __class_getitem__(cls, item: CfgKey) -> Path | bool:
-        return cls.get_data().get(item)
+    def __class_getitem__(cls, item: CfgKey) -> Path:
+        return cls.get_data()[item]
 
     @classmethod
     def assert_key(cls, key: CfgKey):
@@ -263,7 +263,7 @@ class Config(Objectless):
         return cls[game.value.assets_folder] / EXPORTED_PROJECT / PROJECT_SETTINGS
 
     @staticmethod
-    def _fix_assets_path(data: dict[CfgKey, Path | bool]) -> tuple[dict[CfgKey, Path | bool], bool]:
+    def _fix_assets_path(data: dict[CfgKey, Path]) -> tuple[dict[CfgKey, Path], bool]:
         is_changed = False
 
         for key in CfgKey.get_assets_keys():
@@ -281,7 +281,7 @@ class Config(Objectless):
         return data, is_changed
 
     @classmethod
-    def invoke_config_changer(cls, parent: tk.Tk = None):
+    def invoke_config_changer(cls, parent: tk.Tk | None = None):
         Config.load()
         cc = cls.CfgChanger(parent)
         cc.wait_window()
@@ -292,7 +292,7 @@ class Config(Objectless):
             self.title("Change config")
             # self.geometry("700x600")
 
-            self.variables: dict[CfgKey, tk.StringVar | tk.BooleanVar | None] = dict(zip(
+            self.variables: dict[CfgKey, tk.StringVar] = dict(zip(
                 Config._get_default_config(),
                 itertools.cycle((None,))
             ))
@@ -351,11 +351,11 @@ class Config(Objectless):
         def try_save(self):
             # print({k: v.get() for k, v in self.variables.items()})
             data, is_changed = Config._fix_assets_path(
-                {k: Path(v.get()) if isinstance(v, tk.StringVar) else v.get() for k, v in self.variables.items()}
+                {k: Path(v.get()) for k, v in self.variables.items()}
             )
 
             for key in CfgKey.get_assets_keys():
-                self.variables[key].set(str(Path(data.get(key))))
+                self.variables[key].set(str(Path(data.get(key, ""))))
 
             if is_changed:
                 showinfo("Config changed",
@@ -382,7 +382,7 @@ class Config(Objectless):
             self.__save()
 
         def __save(self):
-            data = {k: Path(v.get()) if isinstance(v, tk.StringVar) else v.get() for k, v in self.variables.items()}
+            data = {k: Path(v.get()) for k, v in self.variables.items()}
 
             Config._update_data(data)
             Config._save_config_file()

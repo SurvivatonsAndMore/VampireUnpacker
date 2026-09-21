@@ -124,7 +124,7 @@ class EntryToSave:
                    save_path: Path,
                    entry: dict[str, Any],
                    scale: int,
-                   add_to_path: os.PathLike[str] | str = None
+                   add_to_path: os.PathLike[str] | str | None = None
                    ) -> None:
         entry_save_path = save_path / entry.get("contentGroup", "BASE_GAME")
         key_id = entry.get(KEY_ID)
@@ -163,7 +163,7 @@ class ImageEntryToSave(EntryToSave):
 
 
 class SpriteEntryToSave(ImageEntryToSave):
-    sprite_data: SpriteData = None
+    sprite_data: SpriteData
 
     def __init__(self, sprite_data: SpriteData, name: str, name_wrapper: Callable[[str], str],
                  add_to_path: str | None = None) -> None:
@@ -226,7 +226,7 @@ def get_supported_gen_types() -> set[DataType]:
 def gen_unified_images(dlc_type: DLC | COMPOUND_DATA_TYPE, data_type: DataType,
                        func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT,
                        parent=None) -> Path | None:
-    gen_class: BaseImageGenerator.__class__ = ImageGeneratorManager.get_gen(data_type)
+    gen_class = ImageGeneratorManager.get_gen(data_type)
 
     if not gen_class:
         return None
@@ -261,6 +261,7 @@ class BaseImageGenerator:
     lang_type: LangTypeVS = LangTypeVS.NONE
 
     default_scale_factor = 1
+    default_text_stroke_width = 1
 
     save_image_prefix = "Sprite"
     save_icon_prefix = "Icon"
@@ -275,11 +276,13 @@ class BaseImageGenerator:
     default_frame_name = None
 
     def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE, data_type: DataType,
-                 requested_gen_types: dict[GenType, int | bool]):
+                 requested_gen_types: dict[GenType, int | float | bool]):
         self.data_file: DataFile | None = DataHandler.get_data(dlc_type, data_type)
 
-        lang_data_full = LangHandler.get_lang_file(self.lang_type) or {}
-        self.lang_data = lang_data_full and lang_data_full.get_lang(Lang.EN) or {}
+        self.lang_data: dict[str, Any] = dict()
+        if ((lang_data_full := LangHandler.get_lang_file(self.lang_type))
+                and (lang_data := lang_data_full.get_lang(Lang.EN))):
+            self.lang_data = lang_data
 
         self.requested_gens = requested_gen_types
         self.scale: int = self.requested_gens[GenType.IMAGE]
@@ -736,7 +739,7 @@ class CharacterImageGenerator(ListBaseImageGenerator):
     key_secondary_sprite_name = CHAR_SEL_FRAME
 
     default_frame_name = "CharacterSelectFrame.png"
-    default_stroke_width = 0.7
+    default_text_stroke_width = 0.7
 
     _weapon_image_gen: WeaponImageGenerator = None
 
@@ -1047,8 +1050,6 @@ class StageImageGenerator(ListBaseImageGenerator):
     key_frame_name = None
     key_entry_name = "stageName"
 
-    default_stroke_width = 1
-
     def main_generator(self, dlc_type: DLC | COMPOUND_DATA_TYPE, data_type: DataType,
                        func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT) -> Path | None:
         save_path = super().main_generator(dlc_type, data_type, func_progress_bar_set_percent)
@@ -1137,7 +1138,7 @@ class GeneratorDialog(tk.Toplevel):
         ttk.Label(self, text="Select settings for image generator").pack()
         ttk.Label(self, text=f"({gen.data_type})").pack()
 
-        self.settings: dict[GenType, ...] = dict()
+        self.settings: dict[GenType, Any] = dict()
 
         gen_types_order = list(sorted(GenType.get_types(), key=lambda x: x.value))
         available_gens = gen.get_available_gens()
@@ -1157,7 +1158,7 @@ class GeneratorDialog(tk.Toplevel):
             elif gen_type == GenType.TEXT_STROKE_WIDTH:
                 ttk.Label(self, text=gen_type.get_tip()).pack()
                 stroke_width_input = ttk.Entry(self)
-                stroke_width_input.insert(0, str(gen.default_stroke_width))
+                stroke_width_input.insert(0, str(gen.default_text_stroke_width))
                 stroke_width_input.pack()
 
                 self.settings.update({gen_type: stroke_width_input})
@@ -1179,14 +1180,3 @@ class GeneratorDialog(tk.Toplevel):
     def __close(self):
         self.return_data = {k: k.get_input_value(v.get()) for k, v in self.settings.items()}
         self.destroy()
-
-
-if __name__ == "__main__":
-    width, height = 198, 228
-    text = "Master Librarian"
-    font = ImageFont.truetype("Courier.ttf", 30)
-    image_text = ImageText.Text(text, font)
-    image_text.stroke(width=0.7, fill="#ffffff")
-    a = image_text.wrap(width, height, scaling=("shrink", 20))
-    wrap = ImageText._Wrap(image_text, width, height, font)
-    print(repr(image_text.text), repr(a), repr(wrap.lines))

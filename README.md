@@ -1,7 +1,7 @@
 * [Vampire Survivors Files](https://github.com/SurvivatonsAndMore/VampireSurvivorsFiles)
 * [Vampire Crawlers Files](https://github.com/SurvivatonsAndMore/VampireCrawlersFiles)
 
-# Unpacker (v0.19.1) - Data manager and Image generator
+# Unpacker (v0.19.2) - Data manager and Image generator
 
 Run [unpacker.py](unpacker.py) with [run.bat](run.bat). It can unpack images, get language strings and split them to
 different files and languages, unpack images based on data files and make them with unified names, making (almost
