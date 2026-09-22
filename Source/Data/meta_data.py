@@ -471,7 +471,7 @@ class MetaDataHandler(Emitter, Objectless):
         return meta_data.pop() if meta_data else None
 
     @classmethod
-    def get_meta_dict_by_name_set_fullest(cls, name_set: set, is_multiprocess=True) -> dict[str, MetaData]:
+    def get_meta_dict_by_name_set_fullest(cls, name_set: set[str], is_multiprocess=True) -> dict[str, MetaData]:
         name_set.discard(None)
         fullest_set = {}
 
