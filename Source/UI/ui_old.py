@@ -13,18 +13,18 @@ from tkinter.simpledialog import askinteger
 import PIL
 from PIL.Image import open as image_open
 
-import Source.Data.data_vs as data_vs
+import Source.Data.data_sur as data_vs
 import Source.Data.game_version as game_version
 import Source.Images.transparent_save as tr_save
-import Source.Translations.language_vs as lang_module
+import Source.Translations.language_sur as lang_module
 from Source.Config.config import CfgKey, DLC, Config, Game
 from Source.Data import data_vc
-from Source.Data.data_vs import DataHandler
+from Source.Data.data_sur import DataHandler
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
-from Source.Images import image_gen_vs_old, image_gen_vc, image_gen_vs
+from Source.Images import image_gen_vs_old, image_gen_vc, image_gen_sur
 from Source.Translations import language_vc
 from Source.Translations.language_utils import Lang
-from Source.Translations.language_vs import LangHandler, LangTypeVS
+from Source.Translations.language_sur import LangHandler, LangTypeSur
 from Source.UI.boxes_tkinter import CheckBoxes, ButtonsBox
 from Source.Utility.constants import I2_LANGUAGES, ROOT_FOLDER, IS_DEBUG, \
     DEFAULT_ANIMATION_FRAME_RATE, IMAGES_FOLDER, GENERATED, TILEMAPS, DATA_FOLDER, TRANSLATIONS_FOLDER, SPLIT, \
@@ -589,7 +589,7 @@ class UIOld(tk.Tk):
 
         _time = Timeit()
         print(f"Splitting I2Languages to separate categories. ({split_types[split_index]})")
-        lang_types = LangTypeVS.get_all_types()
+        lang_types = LangTypeSur.get_all_types()
         i = 0
 
         save_path = to_current_game_path(TRANSLATIONS_FOLDER) / GENERATED / SPLIT / split_folder_names[split_index]
@@ -669,12 +669,12 @@ class UIOld(tk.Tk):
             self.outer_progress_bar.change_label(f"Getting language file")
 
             lang = lang_module.LangHandler.get_lang_file(gen.langFileName).get_lang(Lang.EN) \
-                if gen.langFileName != LangTypeVS.NONE else None
+                if gen.langFileName != LangTypeSur.NONE else None
 
             if gen.assets_type == image_gen_vs_old.OldDataType.CHARACTER:
                 w_data = DataHandler.get_data(COMPOUND_DATA, data_vs.DataType.WEAPON).data()
-                lang_skins = lang_module.LangHandler.get_lang_file(LangTypeVS.SKIN).get_lang(Lang.EN)
-                lang_weapon = lang_module.LangHandler.get_lang_file(LangTypeVS.WEAPON).get_lang(Lang.EN)
+                lang_skins = lang_module.LangHandler.get_lang_file(LangTypeSur.SKIN).get_lang(Lang.EN)
+                lang_weapon = lang_module.LangHandler.get_lang_file(LangTypeSur.WEAPON).get_lang(Lang.EN)
                 add_data.update({
                     "weapon": w_data,
                     "character": data,
@@ -751,7 +751,7 @@ class UIOld(tk.Tk):
             return
 
         data_dict = DataHandler.get_dict_by_dlc_type(selected_dlc)
-        data_types = list(sorted(image_gen_vs.get_supported_gen_types().intersection(data_dict.keys()),
+        data_types = list(sorted(image_gen_sur.get_supported_gen_types().intersection(data_dict.keys()),
                                  key=lambda x: x.value))
 
         show_text = selected_dlc.__repr__() if selected_dlc == COMPOUND_DATA else selected_dlc
@@ -766,8 +766,8 @@ class UIOld(tk.Tk):
         print(f"Started generating images for '{str(selected_dlc)}' - '{data_type}'")
 
         timeit = Timeit()
-        self.last_loaded_folder = image_gen_vs.gen_unified_images(selected_dlc, data_type,
-                                                                  self.progress_bar_set_percent, parent=self)
+        self.last_loaded_folder = image_gen_sur.gen_unified_images(selected_dlc, data_type,
+                                                                   self.progress_bar_set_percent, parent=self)
         print(f"Finished generating unified images {timeit!r}")
 
     @staticmethod
@@ -904,7 +904,7 @@ class UIOld(tk.Tk):
             showerror("Error", "FFmpeg not found")
             return
 
-        import Source.Audio.audio_gen_vs as audio_gen
+        import Source.Audio.audio_gen_sur as audio_gen
 
         # dlc_type = self.dlc_selector(allow_compound=True, parent=self)
         # if not dlc_type:

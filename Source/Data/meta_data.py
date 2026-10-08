@@ -20,6 +20,9 @@ from Source.Utility.unity_parser import UnityDoc
 from Source.Utility.utility import normalize_str, to_pascalcase
 
 
+def _make_data_name(name: str) -> str:
+    return str(name).lower()
+
 def _get_meta_guid(path: Path) -> tuple[str | None, Path]:
     if not path or not path.exists():
         return None, path
@@ -150,7 +153,7 @@ def _get_meta(meta_path: Path) -> MetaData:
         internal_id = sprite_sheet['internalID']
         internal_id_to_name_table = [{'first': {0: internal_id}}]
         sprites_data = [{
-            "name": normalize_str(image_path.stem),
+            "name": _make_data_name(image_path.stem),
             'real_name': image_path.stem,
             "internalID": internal_id,
             "rect": {
@@ -164,7 +167,7 @@ def _get_meta(meta_path: Path) -> MetaData:
     for i, data_entry in enumerate(sprites_data):
         internal_id = list(internal_id_to_name_table[i]['first'].values())[0]  # not depends on key
         data_name = str(data_entry['name'])
-        norm_name = normalize_str(data_name)
+        norm_name = _make_data_name(data_name)
 
         if prepared_data_entry := prepared_data_name.get(norm_name):
             prepared_data_entry.internal_id_set.add(internal_id)
@@ -482,6 +485,11 @@ class MetaDataHandler(Emitter, Objectless):
                 lambda name_path: re.fullmatch(rf"{norm_name}_\d+", name_path[0]) or name_path[0] == norm_name
                 # name_path[0].startswith(norm_name+"_") or name_path[0] == norm_name
             )
+
+            if not filtered:
+                print(f"!!! Texture {name} not found in loaded assets")
+                continue
+
             fullest = list(sorted(filtered, key=lambda name_path: name_path[-1].stat().st_size, reverse=True))[0]
             fullest_set[fullest[0]] = name
 

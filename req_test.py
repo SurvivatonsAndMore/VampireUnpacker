@@ -57,7 +57,7 @@ def check_pydub():
     return any([which(f) for f in files])
 
 
-RIPPER_VERSION_MINIMAL = (1, 3, 8)
+RIPPER_VERSION_MINIMAL = (2, 0, 0)
 
 
 def get_ripper_version() -> tuple[int, int, int] | None:
@@ -82,13 +82,13 @@ def version_to_str(ver: tuple[int, ...]):
 def check_ripper_version():
     vers = get_ripper_version()
 
-    if vers and vers < RIPPER_VERSION_MINIMAL:
+    if vers is None:
+        print(f"! Ripper not found for automatic ripping: required version {version_to_str(RIPPER_VERSION_MINIMAL)}+",
+              file=sys.stderr)
+    elif vers < RIPPER_VERSION_MINIMAL:
         print(
             f"!!! RIPPER version is outdated. Current: {version_to_str(vers)}, Required: {version_to_str(RIPPER_VERSION_MINIMAL)}+",
             file=sys.stderr)
-
-    print(f"! Ripper not found for automatic ripping: required version {version_to_str(RIPPER_VERSION_MINIMAL)}+",
-          file=sys.stderr)
 
 
 if __name__ == "__main__":

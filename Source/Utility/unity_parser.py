@@ -402,12 +402,15 @@ class UnityDocTree(UnityEntry):
 
 
 if __name__ == "__main__":
-    # fp = r"D:\Program Files\GitHub\VampireSurvivorsFiles-RAW\0VS\ExportedProject\Assets\GameObject\AstralStair.prefab"
-    # fp = r"D:\Program Files\GitHub\VampireSurvivorsFiles-RAW\0VS\ExportedProject\Assets\GameObject\CarloCart.prefab"
-    fp = r"D:\Program Files\GitHub\VampireSurvivorsFiles-RAW\0VS\ExportedProject\Assets\GameObject\Coop.prefab"
-    # fp = r"D:\Program Files\GitHub\VampireSurvivorsFiles-RAW\0VS\ExportedProject\Assets\GameObject\ADV_SHEMOON_004.prefab"
+    from Source.Data.meta_data import MetaDataHandler
+    from Source.Config.config import Game
 
-    fp = Path(fp)
+    MetaDataHandler.load(Game.WRHS)
+
+    file_name = "ImperialBastion_A"
+    print(file_name)
+
+    fp = MetaDataHandler.get_path_by_name_no_meta(file_name)
 
 
     def __timeit():

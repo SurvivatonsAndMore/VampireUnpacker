@@ -252,7 +252,7 @@ class UITkinter(tk.Tk, UIBase):
         ttk.Button(
             _image_frame,
             text="Get unified images",
-            command=self.get_unified_images_vs
+            command=self.get_unified_images_sur
         ).grid(row=0, column=0)
 
         ttk.Button(
@@ -302,28 +302,89 @@ class UITkinter(tk.Tk, UIBase):
         self.clear_main_frame()
         main_frame = self._main_frame
 
+        ttk.Button(
+            main_frame,
+            text="Create Game Version file",
+            command=self.create_version_file,
+        ).grid(row=0, column=0, pady=self._pady)
+
+        _data_frame = ttk.Frame(main_frame)
+        _data_frame.grid(column=0, row=1)
+
+        ttk.Button(
+            _data_frame,
+            text="Get data",
+            command=self.get_data_vs_all
+        ).grid(row=0, column=0)
+
+        ttk.Button(
+            _data_frame,
+            text="Get merged data",
+            command=self.get_data_vs_merged
+        ).grid(row=0, column=1)
+
+        _lang_frame = ttk.Frame(main_frame)
+        _lang_frame.grid(column=0, row=2)
+
+        ttk.Button(
+            _lang_frame,
+            text="Get language strings file yaml",
+            command=self.get_languages_vs_yaml
+        ).grid(row=0, column=0)
+
+        ttk.Button(
+            _lang_frame,
+            text="Get language strings file json",
+            command=self.get_languages_vs_json
+        ).grid(row=0, column=1)
+
+        ttk.Button(
+            _lang_frame,
+            text="Get split language strings files",
+            command=self.get_languages_vs_split
+        ).grid(row=0, column=2)
+
         _image_frame = ttk.Frame(main_frame)
-        _image_frame.grid(column=0, row=0)
+        _image_frame.grid(column=0, row=3)
+
+        ttk.Button(
+            _image_frame,
+            text="Get unified images",
+            command=self.get_unified_images_sur
+        ).grid(row=0, column=0)
 
         ttk.Button(
             _image_frame,
             text="Get stage tilemap",
             command=lambda: self.get_tilemap(Game.WRHS)
-        ).grid(row=0, column=0)
+        ).grid(row=0, column=1)
 
         ttk.Button(
             _image_frame,
             text="Create inverse tilemap",
             command=self.create_inverse_tilemap
-        ).grid(row=0, column=1)
+        ).grid(row=0, column=2)
+
+        #
+        ttk.Button(
+            main_frame,
+            text="Get unified audio",
+            command=self.get_unified_audio_vs
+        ).grid(row=4, column=0)
 
     @register_game_layout(Game.JJKRS)
     def set_jjkrs_frame(self):
         self.clear_main_frame()
         main_frame = self._main_frame
 
+        ttk.Button(
+            main_frame,
+            text="Create Game Version file",
+            command=self.create_version_file,
+        ).grid(row=0, column=0, pady=self._pady)
+
         _image_frame = ttk.Frame(main_frame)
-        _image_frame.grid(column=0, row=0)
+        _image_frame.grid(column=0, row=1)
 
         ttk.Button(
             _image_frame,
@@ -390,7 +451,7 @@ class UITkinter(tk.Tk, UIBase):
         Config.invoke_config_changer(self)
 
     def check_boxes[T](self, list_to_boxes: list[T], title="", label: str | list[str] = "",
-                       width: int = 300) -> list[bool]:
+                       width: int = 300) -> list[bool] | None:
         return CheckBoxes.execute(list_to_boxes, title=title, label=label, parent=self, width=width)
 
     def buttons_box[T](self, list_to_texts: list[T], title="", label: str | list[str] = "",

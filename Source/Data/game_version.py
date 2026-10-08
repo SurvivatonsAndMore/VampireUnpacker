@@ -66,7 +66,8 @@ def get_dlc_version() -> list[tuple[DLC, str, str]]:
     return result
 
 
-def get_appmanifest() -> dict[str, str]:
+def get_appmanifest(app_id: int | None = None) -> dict[str, str] | None:
+
     STEAMAPPS = "steamapps"
 
     MetaDataHandler.assert_loaded_game()
@@ -78,9 +79,15 @@ def get_appmanifest() -> dict[str, str]:
 
     if path is None or path.stem != STEAMAPPS:
         print(f"Not found steamapps path for {game}", file=sys.stderr)
-        return {}
+        return None
 
-    path /= f"appmanifest_{game.value.appid}.acf"
+    app_id = app_id or game.value.appid
+
+    path /= f"appmanifest_{app_id}.acf"
+
+    if not path.exists():
+        print(f"Not found appmanifest path for {game} ({app_id})", file=sys.stderr)
+        return None
 
     with open(path) as f:
         text = acf_to_json(f.read())
@@ -89,26 +96,17 @@ def get_appmanifest() -> dict[str, str]:
     return text
 
 
-def load_version_file():
+def load_version_file(app_manifest: dict[str, str]):
     MetaDataHandler.assert_loaded_game()
 
     data_folder_key = MetaDataHandler.loaded_game.value.data_folder
     Config.assert_key(data_folder_key)
     data_folder = Config[data_folder_key]
 
+    loaded_game = MetaDataHandler.loaded_game
+
     text = "SHOULD NOT BE PRINTED"
-    match MetaDataHandler.loaded_game:
-        case Game.VS:
-            game_version = get_game_bundle_version()
-            build_num, build_time = get_game_build_version()
-            dlc_list = get_dlc_version()
-
-            text = ""
-            for dlc, name, version in dlc_list:
-                text += f"{name} - {version}\n"
-            text = f"{VAMPIRE_SURVIVORS} - {game_version}\n" + text
-            text += f"{build_time} [{build_num}R]\n"
-
+    match loaded_game:
         case Game.VC:
             build_info = MetaDataHandler.get_path_by_name_no_meta_suffixes("BuildInfo", 'txt')
             if not build_info:
@@ -116,7 +114,18 @@ def load_version_file():
 
             text = build_info.read_text() + "\n"
 
-    manifest = get_appmanifest()
+        case Game.VS | Game.WRHS | Game.JJKRS:
+            game_version = get_game_bundle_version()
+            build_num, build_time = get_game_build_version()
+            dlc_list = get_dlc_version()
+
+            text = ""
+            for dlc, name, version in dlc_list:
+                text += f"{name} - {version}\n"
+            text = f"{loaded_game.get_default_dlc().value.full_name} - {game_version}\n" + text
+            text += f"{build_time} [{build_num}{'R' if loaded_game == Game.VS else ''}]\n"
+
+    manifest = app_manifest
 
     if manifest:
         assert manifest['buildid'] == manifest['TargetBuildID'], "Build ID and Target build ID do not match"

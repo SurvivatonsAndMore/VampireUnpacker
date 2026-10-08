@@ -6,7 +6,7 @@ class CheckBoxes(tk.Toplevel):
 
     @staticmethod
     def execute[T](list_to_boxes: list[T], title="", label: str | list[str] = "", parent=None, width: int = 300) -> list[
-        bool]:
+        bool] | None:
         cbs = CheckBoxes(list_to_boxes, title=title, label=label, parent=parent, width=width)
         cbs.wait_window()
         return cbs.return_data

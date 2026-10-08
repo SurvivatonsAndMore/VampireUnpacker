@@ -13,11 +13,11 @@ from PIL import ImageDraw
 from PIL.Image import Image, open as image_open, new as image_new
 
 from Source.Config.config import DLC
-from Source.Data.data_vs import DataHandler, DataType, DataFile
+from Source.Data.data_sur import DataHandler, DataType, DataFile
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
-from Source.Translations import language_vs
+from Source.Translations import language_sur
 from Source.Translations.language_utils import Lang
-from Source.Translations.language_vs import LangHandler, LangTypeVS
+from Source.Translations.language_sur import LangHandler, LangTypeSur
 from Source.Utility import image_functions
 from Source.Utility.constants import to_source_path, IMAGES_FOLDER, COMPOUND_DATA_TYPE, GENERATED, \
     PROGRESS_BAR_FUNC_TYPE, COMPOUND_DATA, PROGRESS_BAR_FUNC_DEFAULT
@@ -258,7 +258,7 @@ class BaseImageGenerator:
     _available_gens: list[GenType] = [GenType.IMAGE, GenType.IMAGE_FRAME]
 
     data_type: DataType = DataType.NONE
-    lang_type: LangTypeVS = LangTypeVS.NONE
+    lang_type: LangTypeSur = LangTypeSur.NONE
 
     default_scale_factor = 1
     default_text_stroke_width = 1
@@ -382,9 +382,9 @@ class BaseImageGenerator:
             KEY_ID: key_id,
         }
 
-        if self.lang_type != LangTypeVS.NONE:
+        if self.lang_type != LangTypeSur.NONE:
             lang_entry = self.lang_data and self.lang_data.get(key_id) or {}
-            entry_name = language_vs.get_lang_value(lang_entry, self.key_entry_name) or ""
+            entry_name = language_sur.get_lang_value(lang_entry, self.key_entry_name) or ""
             to_update[self.key_entry_name] = entry_name
 
         entry.update(to_update)
@@ -470,7 +470,7 @@ class ItemImageGenerator(BaseImageGenerator):
     _available_gens: list[GenType] = [GenType.IMAGE, GenType.IMAGE_FRAME]
 
     data_type: DataType = DataType.ITEM
-    lang_type: LangTypeVS = LangTypeVS.ITEM
+    lang_type: LangTypeSur = LangTypeSur.ITEM
 
     default_scale_factor = 1
 
@@ -494,7 +494,7 @@ class ArcanaImageGenerator(BaseImageGenerator):
     _available_gens: list[GenType] = [GenType.IMAGE, GenType.IMAGE_FRAME, GenType.ARCANA_PICTURE]
 
     data_type: DataType = DataType.ARCANA
-    lang_type: LangTypeVS = LangTypeVS.ARCANA
+    lang_type: LangTypeSur = LangTypeSur.ARCANA
 
     default_scale_factor = 1
 
@@ -649,7 +649,7 @@ class PropsImageGenerator(BaseImageGenerator):
     _available_gens: list[GenType] = [GenType.IMAGE, GenType.ANIM]
 
     data_type: DataType = DataType.PROPS
-    lang_type: LangTypeVS = LangTypeVS.NONE
+    lang_type: LangTypeSur = LangTypeSur.NONE
 
     default_scale_factor = 1
 
@@ -674,7 +674,7 @@ class AdvMerchantsGenerator(BaseImageGenerator):
     _available_gens: list[GenType] = [GenType.IMAGE]
 
     data_type: DataType = DataType.ADVENTURE_MERCHANTS
-    lang_type: LangTypeVS = LangTypeVS.CHARACTER
+    lang_type: LangTypeSur = LangTypeSur.CHARACTER
 
     default_scale_factor = 1
 
@@ -696,7 +696,7 @@ class AlbumCoversGenerator(BaseImageGenerator):
     _available_gens: list[GenType] = [GenType.IMAGE]
 
     data_type: DataType = DataType.ALBUM
-    lang_type: LangTypeVS = LangTypeVS.NONE
+    lang_type: LangTypeSur = LangTypeSur.NONE
 
     default_scale_factor = 1
 
@@ -711,7 +711,7 @@ class MusicIconsGenerator(BaseImageGenerator):
     _available_gens: list[GenType] = [GenType.IMAGE]
 
     data_type: DataType = DataType.MUSIC
-    lang_type: LangTypeVS = LangTypeVS.NONE
+    lang_type: LangTypeSur = LangTypeSur.NONE
 
     default_scale_factor = 1
 
@@ -744,7 +744,7 @@ class CpuGenerator(BaseImageGenerator):
     _available_gens: list[GenType] = [GenType.IMAGE]
 
     data_type: DataType = DataType.CPU
-    lang_type: LangTypeVS = LangTypeVS.PARTY
+    lang_type: LangTypeSur = LangTypeSur.PARTY
 
     default_scale_factor = 1
 
@@ -765,7 +765,7 @@ class WeaponImageGenerator(ListBaseImageGenerator):
     _available_gens: list[GenType] = [GenType.IMAGE, GenType.IMAGE_FRAME]
 
     data_type: DataType = DataType.WEAPON
-    lang_type: LangTypeVS = LangTypeVS.WEAPON
+    lang_type: LangTypeSur = LangTypeSur.WEAPON
 
     key_main_texture_name = "texture"
     key_sprite_name = "frameName"
@@ -778,7 +778,7 @@ class PowerUpImageGenerator(ListBaseImageGenerator):
     _available_gens: list[GenType] = [GenType.IMAGE, GenType.IMAGE_FRAME]
 
     data_type: DataType = DataType.POWER_UP
-    lang_type: LangTypeVS = LangTypeVS.POWER_UP
+    lang_type: LangTypeSur = LangTypeSur.POWER_UP
 
     default_scale_factor = 1
 
@@ -800,7 +800,7 @@ class CharacterImageGenerator(ListBaseImageGenerator):
                                       GenType.CHARACTER_SKINS, GenType.TEXT_STROKE_WIDTH]
 
     data_type: DataType = DataType.CHARACTER
-    lang_type: LangTypeVS = LangTypeVS.CHARACTER
+    lang_type: LangTypeSur = LangTypeSur.CHARACTER
 
     save_image_prefix = "Sprite"
     save_icon_prefix = "Select"
@@ -845,7 +845,7 @@ class CharacterImageGenerator(ListBaseImageGenerator):
     def _set_entries(self):
         super()._set_entries()
 
-        lang_data_full = LangHandler.get_lang_file(LangTypeVS.SKIN)
+        lang_data_full = LangHandler.get_lang_file(LangTypeSur.SKIN)
         self.lang_skin_data: dict[str, Any] = lang_data_full.get_lang(Lang.EN) if lang_data_full else {}
 
         self.base_entries = self.entries.copy()
@@ -950,14 +950,14 @@ class CharacterImageGenerator(ListBaseImageGenerator):
                 skin_type = skin_entry.get(SKIN_TYPE, DEFAULT)
                 skin_lang_entry = self.lang_skin_data and self.lang_skin_data.get(skin_type) or {}
 
-                prefix = language_vs.get_lang_value(skin_lang_entry, PREFIX) \
-                         or language_vs.get_lang_value(lang_entry, PREFIX) \
+                prefix = language_sur.get_lang_value(skin_lang_entry, PREFIX) \
+                         or language_sur.get_lang_value(lang_entry, PREFIX) \
                          or skin_entry.get(PREFIX)
-                char_name = language_vs.get_lang_value(lang_entry, CHAR_NAME) \
+                char_name = language_sur.get_lang_value(lang_entry, CHAR_NAME) \
                             or skin_entry.get(CHAR_NAME)
-                surname = language_vs.get_lang_value(lang_entry, SURNAME) \
+                surname = language_sur.get_lang_value(lang_entry, SURNAME) \
                           or skin_entry.get(SURNAME)
-                suffix = language_vs.get_lang_value(skin_lang_entry, SUFFIX) \
+                suffix = language_sur.get_lang_value(skin_lang_entry, SUFFIX) \
                          or skin_entry.get(SUFFIX)
 
                 skin_entry.update({
@@ -999,7 +999,7 @@ class CharacterImageGenerator(ListBaseImageGenerator):
 
             if (weapon_id := entry.get("startingWeapon")) and weapon_id not in ["VOID", "0", 0, None]:
                 weapon_lang_data = CharacterImageGenerator._weapon_image_gen.lang_data
-                weapon_lang = language_vs.get_lang_value(weapon_lang_data, weapon_id, 'name')
+                weapon_lang = language_sur.get_lang_value(weapon_lang_data, weapon_id, 'name')
 
                 if weapon_lang is None:
                     print(f"Not found weapon [ID={weapon_id}] for character {key_id}")
@@ -1021,9 +1021,9 @@ class CharacterImageGenerator(ListBaseImageGenerator):
     def get_unit(self, key_id: str, entry: list[dict[str, Any]]) -> dict[str, Any]:
         entry = super().get_unit(key_id, entry)
         lang_entry = self.lang_data and self.lang_data.get(key_id) or {}
-        prefix = language_vs.get_lang_value(lang_entry, PREFIX)
-        char_name = language_vs.get_lang_value(lang_entry, CHAR_NAME)
-        surname = language_vs.get_lang_value(lang_entry, SURNAME)
+        prefix = language_sur.get_lang_value(lang_entry, PREFIX)
+        char_name = language_sur.get_lang_value(lang_entry, CHAR_NAME)
+        surname = language_sur.get_lang_value(lang_entry, SURNAME)
         entry.update({
             PREFIX: prefix or "",
             CHAR_NAME: char_name or "",
@@ -1097,7 +1097,7 @@ class EnemyImageGenerator(ListBaseImageGenerator):
     _available_gens: list[GenType] = [GenType.IMAGE]
 
     data_type: DataType = DataType.ENEMY
-    lang_type: LangTypeVS = LangTypeVS.ENEMIES
+    lang_type: LangTypeSur = LangTypeSur.ENEMIES
 
     save_image_prefix = "Sprite"
 
@@ -1115,7 +1115,7 @@ class StageImageGenerator(ListBaseImageGenerator):
     _available_gens: list[GenType] = [GenType.IMAGE, GenType.STAGE_WITH_NAME, GenType.TEXT_STROKE_WIDTH]
 
     data_type: DataType = DataType.STAGE
-    lang_type: LangTypeVS = LangTypeVS.STAGE
+    lang_type: LangTypeSur = LangTypeSur.STAGE
 
     default_scale_factor = 1
 

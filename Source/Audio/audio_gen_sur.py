@@ -6,13 +6,13 @@ from typing import Literal, Any
 
 from pydub import AudioSegment
 
-import Source.Data.data_vs as data_module
-import Source.Translations.language_vs as language_vs
+import Source.Data.data_sur as data_module
+import Source.Translations.language_sur as language_vs
 from Source.Config.config import DLC
-from Source.Data.data_vs import DataType
+from Source.Data.data_sur import DataType
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
 from Source.Translations.language_utils import Lang
-from Source.Translations.language_vs import LangTypeVS
+from Source.Translations.language_sur import LangTypeSur
 from Source.Utility.constants import GENERATED, COMPOUND_DATA, AUDIO_FOLDER, COMPOUND_DATA_TYPE, PROGRESS_BAR_FUNC_TYPE, \
     PROGRESS_BAR_FUNC_DEFAULT
 from Source.Utility.multirun import map_multiprocess, starmap_multiprocess, \
@@ -116,7 +116,7 @@ def _get_music_track(audio_clips: dict[str, Path], music_data: dict[str, Any], p
     found_songs = list(filter(lambda k_v: song_name_main + "_" in normalize_str(k_v[0])
                                           or song_name_main == normalize_str(k_v[0]), audio_clips.items()))
     if len(found_songs) > 1:
-        is_vs = "_vs_" in normalize_str(code_name) or " - Vampire Survivors" in tags["title"]
+        is_vs = "_vs_" in normalize_str(code_name) or " - Vampire Survivors" in tags.get("title", "")
         if is_vs:
             print(f"Found songs with duplicate names: {found_songs}. Separating them by their file sizes.")
 
@@ -168,10 +168,10 @@ def gen_music_tracks(
     bgm_keys = ["bgm", "BGM", "sideBBGM"]
     if AudioSaveType.RELATIVE_NAME in save_name_types:
         not_found = []
-        data_files: dict[str, tuple[LangTypeVS, str, str, DataType | None]] = {
-            "unlockedByStage": (LangTypeVS.STAGE, "stageName", "Stage", DataType.STAGE),
-            "unlockedByCharacter": (LangTypeVS.CHARACTER, "charName", "Character", DataType.CHARACTER),
-            "unlockedByItem": (LangTypeVS.ITEM, "name", "Item", None),
+        data_files: dict[str, tuple[LangTypeSur, str, str, DataType | None]] = {
+            "unlockedByStage": (LangTypeSur.STAGE, "stageName", "Stage", DataType.STAGE),
+            "unlockedByCharacter": (LangTypeSur.CHARACTER, "charName", "Character", DataType.CHARACTER),
+            "unlockedByItem": (LangTypeSur.ITEM, "name", "Item", None),
         }
 
         for data_key, items in data_files.items():

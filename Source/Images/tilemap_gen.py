@@ -50,7 +50,7 @@ def __load_unity_document(path: Path) -> list[Tilemap | None]:
     return tilemaps
 
 
-def __create_tilemap_image(tilemap: Tilemap, new_image: Image, data_by_guid: dict[str: MetaData],
+def __create_tilemap_image(tilemap: Tilemap, new_image: Image, data_by_guid: dict[str, MetaData],
                            save_path: Path) -> Image:
     size_tile_x, size_tile_y = Tilemap.get_size_tile()
 
@@ -59,7 +59,7 @@ def __create_tilemap_image(tilemap: Tilemap, new_image: Image, data_by_guid: dic
                          tilemap.m_TileMatrixArray]
     tiles = ({
         "pos": {k: int(v) for k, v in tile["first"].items()},
-        "tile_index": int(tile["second"]["m_TileIndex"]),
+        "tile_index": int(tile["second"]["m_TileSpriteIndex"]),
         "matrix_index": int(tile["second"]["m_TileMatrixIndex"])
     } for tile in tilemap.m_Tiles)
 
@@ -76,7 +76,11 @@ def __create_tilemap_image(tilemap: Tilemap, new_image: Image, data_by_guid: dic
             log_list.append(line)
             continue
 
+        if sprite.size == (0, 0):
+            continue
+
         sprite = __resize_sprite_for_tile(sprite, sprite_data, (size_tile_x, size_tile_y))
+
 
         matrix = tile_matrix_array[tile["matrix_index"]]
         if matrix["e00"] != 1 or matrix["e11"] != 1:

@@ -1,7 +1,7 @@
 * [Vampire Survivors Files](https://github.com/SurvivatonsAndMore/VampireSurvivorsFiles)
 * [Vampire Crawlers Files](https://github.com/SurvivatonsAndMore/VampireCrawlersFiles)
 
-# Unpacker (v0.19.3) - Data manager and Image generator
+# Unpacker (v0.19.4) - Data manager and Image generator
 
 Run [unpacker.py](unpacker.py) with [run.bat](run.bat). It can unpack images, get language strings and split them to
 different files and languages, unpack images based on data files and make them with unified names, making (almost
@@ -18,7 +18,7 @@ dumped _DATA_ folder (to be used by Unpacker) with _**Change config**_.
 
 * ! ***NOTE*** that ripping will **<u>REMOVE EVERYTHING</u>** in selected **<u>assets</u>** folders!
 
-Using [AssetRipper](https://github.com/AssetRipper/AssetRipper) (v1.3.8+; latest tested: v2.0.0)
+Using [AssetRipper](https://github.com/AssetRipper/AssetRipper) (v2.0.0+)
 
 * **<u>Automatically</u>** (Recommended) - Enter path to folder with AssetRipper.exe and Steam folder for Vampire
   Survivors in config. Press _**Magic button**_ and select Games to rip. Your previous settings for AssetRipper will be

@@ -4,11 +4,11 @@ from pathlib import Path
 from typing import Iterable
 
 from Source.Config.config import Config, DLC, CfgKey, Game
-from Source.Data import game_version, data_vc, data_vs
+from Source.Data import game_version, data_vc, data_sur
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
-from Source.Images import transparent_save, image_gen_vs
+from Source.Images import transparent_save, image_gen_sur
 from Source.Images.image_gen_general import generate_images_by_meta, generate_animation_by_meta
-from Source.Translations import language_vc, language_vs
+from Source.Translations import language_vc, language_sur
 from Source.Utility import image_functions
 from Source.Utility.constants import to_source_path, IMAGES_FOLDER, GENERATED, COMPOUND_DATA_TYPE, COMPOUND_DATA, \
     DEFAULT_ANIMATION_FRAME_RATE, PREFAB_INSTANCE, GAME_OBJECT, TILEMAPS
@@ -22,6 +22,8 @@ class UIBase:
         self._icon_path = to_source_path(IMAGES_FOLDER) / "Show" / "_Sprite-Atlas Gate.png"
 
         self._last_loaded_folder: Path | None = None
+
+        MetaDataHandler.register(MetaDataHandler.Emit.BEFORE_LOAD, lambda *_: data_sur.DataHandler.unload())
 
     @staticmethod
     def ask_open_file_name(title: str = "Select file", initialdir: str | PathLike[str] | None = None,
@@ -75,7 +77,7 @@ class UIBase:
         raise NotImplementedError()
 
     def check_boxes[T](self, list_to_boxes: list[T], title="", label: str | list[str] = "", width: int = 300) -> \
-            list[bool]:
+            list[bool] | None:
         raise NotImplementedError()
 
     def buttons_box[T](self, list_to_texts: list[T], title="", label: str | list[str] = "",
@@ -149,9 +151,22 @@ class UIBase:
         print("Finished ripping files")
         MetaDataHandler.unload()
 
-    @staticmethod
-    def create_version_file():
-        game_version.load_version_file()
+    def create_version_file(self):
+        app_id = None
+        while True:
+            app_manifest = game_version.get_appmanifest(app_id)
+
+            if app_manifest:
+                break
+
+            app_id = self.ask_integer(
+                "App ID not found",
+                f"Manifest for app ID [{app_id or 'Current game'}] not found.\nEnter new ID (Demo have different app id) or cancel",
+                initialvalue=app_id or 0)
+            if app_id is None:
+                return
+
+        game_version.load_version_file(app_manifest)
 
     def unpack_by_meta(self, generate_function):
         selected_game = self.game_selector()
@@ -321,20 +336,20 @@ class UIBase:
     ###
 
     def get_data_vs_all(self):
-        self._last_loaded_folder = data_vs.dump_all_data(self.progress_bar_set_percent)
-        data_vs.make_meta_file_folder_structure()
+        self._last_loaded_folder = data_sur.dump_all_data(self.progress_bar_set_percent)
+        data_sur.make_meta_file_folder_structure()
 
     def get_data_vs_merged(self):
-        self._last_loaded_folder = data_vs.dump_merged_data(self.progress_bar_set_percent)
+        self._last_loaded_folder = data_sur.dump_merged_data(self.progress_bar_set_percent)
 
     def get_languages_vs_yaml(self):
-        self._last_loaded_folder = language_vs.dump_original_i2l(self.progress_bar_set_percent)
+        self._last_loaded_folder = language_sur.dump_original_i2l(self.progress_bar_set_percent)
 
     def get_languages_vs_json(self):
-        self._last_loaded_folder = language_vs.dump_json_i2l(self.progress_bar_set_percent)
+        self._last_loaded_folder = language_sur.dump_json_i2l(self.progress_bar_set_percent)
 
     def get_languages_vs_split(self):
-        available_split_types, lang_splits = language_vs.get_available_split_types()
+        available_split_types, lang_splits = language_sur.get_available_split_types()
 
         selected_split_types = self.check_boxes(available_split_types, title="Select split types",
                                                 label="Select types for splitting langs")
@@ -345,26 +360,26 @@ class UIBase:
 
         selected_langs = None
         if is_lang_select:
-            available_langs = language_vs.get_available_lang_types()
+            available_langs = language_sur.get_available_lang_types()
 
             selected_langs = self.check_boxes(available_langs,
                                               label="Select languages to include in split files",
                                               title="Select languages")
             selected_langs = [available_langs[i] for i, is_selected in enumerate(selected_langs) if is_selected]
 
-        self._last_loaded_folder = language_vs.dump_split_i2l(selected_split_types, selected_langs,
-                                                              self.progress_bar_set_percent)
+        self._last_loaded_folder = language_sur.dump_split_i2l(selected_split_types, selected_langs,
+                                                               self.progress_bar_set_percent)
 
-        language_vs.make_meta_file_split_folder_structure()
+        language_sur.make_meta_file_split_folder_structure()
 
-    def get_unified_images_vs(self):
-        selected_dlc = self.dlc_selector(Game.VS, allow_compound=True)
+    def get_unified_images_sur(self):
+        selected_dlc = self.dlc_selector(MetaDataHandler.loaded_game, allow_compound=True)
 
         if not selected_dlc:
             return
 
-        data_dict = data_vs.get_available_data_by_dlc(selected_dlc)
-        data_types = list(sorted(image_gen_vs.get_supported_gen_types().intersection(data_dict.keys()),
+        data_dict = data_sur.get_available_data_by_dlc(selected_dlc)
+        data_types = list(sorted(image_gen_sur.get_supported_gen_types().intersection(data_dict.keys()),
                                  key=lambda x: x.value))
 
         selected_data = self.buttons_box(
@@ -374,8 +389,8 @@ class UIBase:
         if not selected_data:
             return
 
-        self._last_loaded_folder = image_gen_vs.gen_unified_images(selected_dlc, selected_data,
-                                                                   self.progress_bar_set_percent, parent=self)
+        self._last_loaded_folder = image_gen_sur.gen_unified_images(selected_dlc, selected_data,
+                                                                    self.progress_bar_set_percent, parent=self)
 
     def get_unified_audio_vs(self):
         from req_test import check_pydub
@@ -384,7 +399,7 @@ class UIBase:
             self.show_error("Error", "FFmpeg not found")
             return
 
-        import Source.Audio.audio_gen_vs as audio_gen
+        import Source.Audio.audio_gen_sur as audio_gen
 
         save_types_list = audio_gen.AudioSaveType.get()
         selected_save_type = self.check_boxes(save_types_list, title="Select save types",

@@ -74,7 +74,7 @@ class GameType:
 class Game(Enum):
     VS = GameType(1794680, CfgKey.STEAM_VS, CfgKey.ASSETS_VS, CfgKey.DATA_VS)
     VC = GameType(3265700, CfgKey.STEAM_VC, CfgKey.ASSETS_VC, CfgKey.DATA_VC)
-    WRHS = GameType(3669620, CfgKey.STEAM_WRHS, CfgKey.ASSETS_WRHS, CfgKey.DATA_WRHS)
+    WRHS = GameType(3669620, CfgKey.STEAM_WRHS, CfgKey.ASSETS_WRHS, CfgKey.DATA_WRHS) # 4499200 - demo
     JJKRS = GameType(4753290, CfgKey.STEAM_JJKRS, CfgKey.ASSETS_JJKRS, CfgKey.DATA_JJKRS)
 
     SPECIAL = GameType(-1, CfgKey.STEAM_VS, CfgKey.ASSETS_VS, CfgKey.DATA_VS)

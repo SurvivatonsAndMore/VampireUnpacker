@@ -41,6 +41,11 @@ class DataType(StrEnum):
     STAGE = "Stage"
     WEAPON = "Weapon"
 
+    # WHRS
+    SILOS = "Silos"
+    PAINT = "Paint"
+
+
     NONE = "__None"
 
     @classmethod
@@ -90,6 +95,15 @@ class DataType(StrEnum):
                 return DataType.ADVENTURE_STAGE
             case "_AdventuresMerchantsDataJsonAsset":
                 return DataType.ADVENTURE_MERCHANTS
+
+            # WHRS
+            case "_SilosDataJsonAsset":
+                return DataType.SILOS
+            case "_PaintPotsDataJsonAsset":
+                return DataType.PAINT
+            case "_LimitlessDataJsonAsset":
+                return DataType.LIMIT_BREAK
+
         return DataType.NONE
 
 
@@ -216,6 +230,11 @@ class DataHandler(Objectless):
     _concat_data: dict[DataType, DataFile] = {}
 
     @classmethod
+    def unload(cls) -> None:
+        cls._loaded_data.clear()
+        cls._concat_data.clear()
+
+    @classmethod
     def load(cls):
         if cls._loaded_data:
             return
@@ -223,13 +242,13 @@ class DataHandler(Objectless):
         ## VS: "DataManagerSettings", Other: "BundleManifestData - [code_name (id) in PascalCase]"
         loaded_data = {}
 
-        vs_data = list(MetaDataHandler.filter_paths(lambda name_path: DATA_MANAGER_SETTINGS.lower() in name_path[0]))
+        data_manager_settings = list(MetaDataHandler.filter_paths(lambda name_path: DATA_MANAGER_SETTINGS.lower() in name_path[0]))
 
-        if vs_data:
-            doc = UnityDoc.yaml_parse_file(vs_data[0][1].with_suffix(""))
-            loaded_data[DLC.VS] = doc.entries[0].data['_Settings']
+        if data_manager_settings:
+            doc = UnityDoc.yaml_parse_file(data_manager_settings[0][1].with_suffix(""))
+            loaded_data[MetaDataHandler.loaded_game.get_default_dlc()] = doc.entries[0].data['_Settings']
 
-        all_dlc_types = DLC.get_all_types()
+        all_dlc_types = DLC.get_all_types_by_game(MetaDataHandler.loaded_game)
         dlc_datas = MetaDataHandler.filter_paths(lambda name_path: BUNDLE_MANIFEST_DATA.lower() in name_path[0])
         for name, path in dlc_datas:
             for dlc_type in all_dlc_types:
@@ -286,7 +305,7 @@ def make_meta_file_folder_structure() -> Path:
 
     folder_meta_data = {
         dlc_type.value.full_name: [dlc.value for dlc in DataHandler.get_dict_by_dlc_type(dlc_type).keys()]
-        for dlc_type in DLC.get_all_types_by_game(Game.VS)
+        for dlc_type in DLC.get_all_types_by_game(MetaDataHandler.loaded_game)
     }
     save_path.write_text(json.dumps(folder_meta_data, ensure_ascii=False, indent=2))
 
@@ -295,7 +314,6 @@ def make_meta_file_folder_structure() -> Path:
 def dump_all_data(
         func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT
 ) -> Path:
-    assert MetaDataHandler.loaded_game == Game.VS, f"Loaded wrong metadata ({MetaDataHandler.loaded_game}). Need {Game.VC}"
 
     _timeit = Timeit()
 
@@ -303,7 +321,7 @@ def dump_all_data(
     total_amount = DataHandler.get_total_amount()
     i = 0
 
-    dlc_types = DLC.get_all_types_by_game(Game.VS)
+    dlc_types = DLC.get_all_types_by_game(MetaDataHandler.loaded_game)
     for dlc_type in dlc_types:
         save_path = data_path / dlc_type.value.full_name
         save_path.mkdir(parents=True, exist_ok=True)
@@ -320,7 +338,6 @@ def dump_all_data(
 def dump_merged_data(
         func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT
 ) -> Path:
-    assert MetaDataHandler.loaded_game == Game.VS, f"Loaded wrong metadata ({MetaDataHandler.loaded_game}). Need {Game.VC}"
 
     _timeit = Timeit()
 
@@ -332,7 +349,7 @@ def dump_merged_data(
     i = 0
 
     for data_type in data_types:
-        func_progress_bar_set_percent(i := i + 1, len(data_types), f"{data_type.value} {_timeit!r}")
+        func_progress_bar_set_percent(i := i + 1, total_amount, f"{data_type.value} {_timeit!r}")
 
         data_file = DataHandler.get_data(COMPOUND_DATA, data_type)
         with open((save_path / data_type.value).with_suffix(".json"), mode="w", encoding="UTF-8") as f:

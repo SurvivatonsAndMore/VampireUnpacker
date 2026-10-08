@@ -15,7 +15,7 @@ from Source.Utility.unity_parser import UnityDoc
 VALUE = "_value"
 
 
-class LangTypeVS(Enum):
+class LangTypeSur(Enum):
     ACHIEVEMENT = "achievementLang"
     ADVENTURE = "adventureLang"
     ARCANA = "arcanaLang"
@@ -36,10 +36,20 @@ class LangTypeVS(Enum):
     WEAPON = "weaponLang"
     XBOX_ACH = "Xbox Achievements"
 
+    # WHRS
+    ACHIEVEMENT2 = "achivementLang" # typo
+    PS_ACH = "PlaystationAchievements"
+    STATUS = "statusLang"
+    STATUS2 = "statusLAng" # typo
+    PAINT_POT = "paintPotLang"
+    DAMAGE = "damageLang"
+    DIALOGUE = "dialogue"
+
+
     NONE = None
 
     @classmethod
-    def get_all_types(cls) -> set["LangTypeVS"]:
+    def get_all_types(cls) -> set["LangTypeSur"]:
         return {*cls}.difference({cls.NONE})
 
 
@@ -53,13 +63,13 @@ def get_lang_value(data: dict, *keys) -> Any | None:
 
 
 class LangFile:
-    __lang_type: LangTypeVS | COMPOUND_DATA_TYPE
+    __lang_type: LangTypeSur | COMPOUND_DATA_TYPE
     __data: dict[str, Any] | None = None
     __lang_data: dict[Lang, dict[str, Any]] | None = None
     __raw_text: str | None = None
     __json_text: str | None = None
 
-    def __init__(self, lang_type: LangTypeVS | COMPOUND_DATA_TYPE, data: dict[str, Any] | None = None,
+    def __init__(self, lang_type: LangTypeSur | COMPOUND_DATA_TYPE, data: dict[str, Any] | None = None,
                  raw_text: str | None = None):
         self.__lang_type = lang_type
         if data:
@@ -103,7 +113,7 @@ class LangFile:
 
 class LangHandler(Objectless):
     _full_file: LangFile = None
-    _loaded_data: dict[LangTypeVS, LangFile] = {}
+    _loaded_data: dict[LangTypeSur, LangFile] = {}
 
     @classmethod
     def __load_i2languages(cls):
@@ -131,14 +141,14 @@ class LangHandler(Objectless):
         timeit = Timeit()
         print("Initializing lang files")
 
-        loaded_data: dict[LangTypeVS, Any] = {lang_type: {} for lang_type in LangTypeVS.get_all_types()}
+        loaded_data: dict[LangTypeSur, Any] = {lang_type: {} for lang_type in LangTypeSur.get_all_types()}
         full_data = cls._full_file.data()["mSource"]["mTerms"]
 
         for i, lang_entry in enumerate(full_data):
             lang_type_str, *full_key = lang_entry["Term"].replace("{", "").replace("}", "/").split("/")
-            lang_type = LangTypeVS(lang_type_str) if lang_type_str in LangTypeVS else LangTypeVS.NONE
+            lang_type = LangTypeSur(lang_type_str) if lang_type_str in LangTypeSur else LangTypeSur.NONE
 
-            if lang_type == LangTypeVS.NONE:
+            if lang_type == LangTypeSur.NONE:
                 print(f"Skipping lang_type={lang_type_str} ({full_key}). "
                       "This message most likely means that new LangType was added", file=sys.stderr)
                 continue
@@ -154,7 +164,8 @@ class LangHandler(Objectless):
             ]
 
         for lang_type, values in loaded_data.items():
-            cls._loaded_data[lang_type] = LangFile(lang_type, data=values)
+            if values:
+                cls._loaded_data[lang_type] = LangFile(lang_type, data=values)
 
         print(f"Initialized lang files {timeit!r}")
 
@@ -170,12 +181,12 @@ class LangHandler(Objectless):
         return langs
 
     @classmethod
-    def get_lang_file(cls, lang_type: LangTypeVS) -> LangFile | None:
+    def get_lang_file(cls, lang_type: LangTypeSur) -> LangFile | None:
         cls.__load_separate()
         return cls._loaded_data.get(lang_type)
 
 
-def gen_changed_list_to_dict(lang_type: LangTypeVS) -> dict[str, Any]:
+def gen_changed_list_to_dict(lang_file: LangFile) -> dict[str, Any]:
     lang_list = LangHandler.get_lang_list()
 
     out_data = {}
@@ -191,13 +202,13 @@ def gen_changed_list_to_dict(lang_type: LangTypeVS) -> dict[str, Any]:
                 assert False
         return out_dict
 
-    for key, val in LangHandler.get_lang_file(lang_type).data().items():
+    for key, val in lang_file.data().items():
         out_data[key] = make_data_recursive(val)
 
     return out_data
 
 
-def gen_inverse_dict(lang_type: LangTypeVS, selected_langs: set[int] = None) -> dict[Lang, Any]:
+def gen_inverse_dict(lang_type: LangTypeSur, selected_langs: set[int] = None) -> dict[Lang, Any]:
     timeit = Timeit()
     print(f"Generating inverse lang for {lang_type}")
 
@@ -284,20 +295,31 @@ def get_available_lang_types() -> list[Lang]:
 
 def dump_split_i2l(
         selected_split_types: list[bool],
-        selected_langs: list[str] | None = None,
+        selected_langs: list[Lang] | None = None,
         func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE = PROGRESS_BAR_FUNC_DEFAULT
 ) -> Path:
-    split_funcs = [
-        lambda l_t: LangHandler.get_lang_file(l_t).json_text(),
-        lambda l_t: json.dumps(gen_changed_list_to_dict(l_t), ensure_ascii=False, indent=2),
-        lambda l_t: json.dumps(
-            {lang.value: LangHandler.get_lang_file(l_t).get_lang(lang) for lang in selected_langs},
-            ensure_ascii=False, indent=2),
-    ]
+    def split_func(_index: int, _lang_type: LangTypeSur) -> str | None:
+        _lang_file = LangHandler.get_lang_file(_lang_type)
+
+        if _lang_file is None:
+            return None
+
+        match _index:
+            case 0:
+                return _lang_file.json_text()
+            case 1:
+                return json.dumps(gen_changed_list_to_dict(_lang_file), ensure_ascii=False, indent=2)
+            case 2:
+                assert selected_langs is not None
+                return json.dumps({lang: _lang_file.get_lang(lang) for lang in selected_langs},
+                                  ensure_ascii=False, indent=2)
+
+        return None
+
     split_folder_names = ["LangList", "LangDictionary", "InverseLangDictionary"]
 
     _timeit = Timeit()
-    lang_types = LangTypeVS.get_all_types()
+    lang_types = LangTypeSur.get_all_types()
     total_length = len(lang_types) * sum(selected_split_types)
     i = 0
 
@@ -312,9 +334,9 @@ def dump_split_i2l(
         save_path = split_path / split_folder_names[split_index]
         save_path.mkdir(parents=True, exist_ok=True)
         for lang_type in lang_types:
-            lang_file = split_funcs[split_index](lang_type)
-            if lang_file:
-                with open((save_path / lang_type.value).with_suffix(".json"), mode="w", encoding="UTF-8") as f:
+            lang_file = split_func(split_index, lang_type)
+            if lang_file is not None:
+                with open((save_path / str(lang_type.value)).with_suffix(".json"), mode="w", encoding="UTF-8") as f:
                     f.write(lang_file)
 
             func_progress_bar_set_percent(i := i + 1, total_length, f"{split_folder_names[split_index]} {_timeit!r}")
@@ -327,12 +349,12 @@ def dump_split_i2l(
 
 def make_meta_file_split_folder_structure() -> Path:
     save_path = to_current_game_path(TRANSLATIONS_FOLDER) / GENERATED / "Metadata.json"
-    folder_metadata = [lang_type.value for lang_type in LangTypeVS.get_all_types()]
+    folder_metadata = [lang_type.value for lang_type in LangTypeSur.get_all_types()]
     save_path.write_text(json.dumps(sorted(folder_metadata), ensure_ascii=False, indent=2))
     return save_path
 
 
 if __name__ == "__main__":
     # LangHandler.get_i2language().data()
-    a = gen_inverse_dict(LangTypeVS.ITEM, {0, 7})
+    a = gen_inverse_dict(LangTypeSur.ITEM, {0, 7})
     print(a.keys())

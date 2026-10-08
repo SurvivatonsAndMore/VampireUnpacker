@@ -8,7 +8,7 @@ from PIL import ImageFont, ImageDraw
 from PIL.Image import Image, Resampling, open as image_open, new as image_new
 
 import Source.Images.transparent_save as tr_save
-from Source.Translations.language_vs import LangTypeVS
+from Source.Translations.language_sur import LangTypeSur
 from Source.Utility.constants import DEFAULT_ANIMATION_FRAME_RATE, IMAGES_FOLDER, to_source_path
 from Source.Utility.image_functions import get_anim_sprites_ready, resize_list_images
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
@@ -101,7 +101,7 @@ class ImageGenerator:
         self.scaleFactor = 1
         self.folderToSave = None
         self.frameKey = None
-        self.langFileName: LangTypeVS = LangTypeVS.NONE
+        self.langFileName: LangTypeSur = LangTypeSur.NONE
         self.defaultFrameName = None
         self.dataAnimFramesKey = None
 
@@ -472,7 +472,7 @@ class ItemImageGenerator(SimpleGenerator):
         self.dataTextureKey = "texture"
         self.folderToSave = "items"
         self.dataObjectKey = "name"
-        self.langFileName = LangTypeVS.ITEM
+        self.langFileName = LangTypeSur.ITEM
         self.defaultFrameName = "frameC.png"
 
         self.available_gen.extend([GenType.ANIM])
@@ -491,7 +491,7 @@ class ArcanaImageGenerator(SimpleGenerator):
         self.dataTextureKey = "texture"
         self.dataObjectKey = "name"
         self.folderToSave = "arcana"
-        self.langFileName = LangTypeVS.ARCANA
+        self.langFileName = LangTypeSur.ARCANA
 
         self.defaultFrameName = "frameG.png"
 
@@ -554,7 +554,7 @@ class AdvMerchantsGenerator(SimpleGenerator):
         self.dataTextureKey = "staticSpriteTexture"
 
         self.dataObjectKey = "charName"
-        self.langFileName = LangTypeVS.CHARACTER
+        self.langFileName = LangTypeSur.CHARACTER
 
         self.folderToSave = "adventure merchants"
 
@@ -651,7 +651,7 @@ class WeaponImageGenerator(TableGenerator):
         self.frameKey = "collectionFrame"
         self.folderToSave = "weapons"
         self.defaultFrameName = "frameB.png"
-        self.langFileName = LangTypeVS.WEAPON
+        self.langFileName = LangTypeSur.WEAPON
 
 
 class CharacterImageGenerator(TableGenerator):
@@ -664,7 +664,7 @@ class CharacterImageGenerator(TableGenerator):
         self.dataTextureKey = "textureName"
         self.dataObjectKey = "charName"
         self.folderToSave = "characters"
-        self.langFileName = LangTypeVS.CHARACTER
+        self.langFileName = LangTypeSur.CHARACTER
         self.dataAnimFramesKey = "walkingFrames"
         self.iconPrefix = "Select"
 
@@ -916,7 +916,7 @@ class PowerUpImageGenerator(TableGenerator):
         self.dataSpriteKey = "frameName"
         self.dataTextureKey = "texture"
         self.dataObjectKey = "name"
-        self.langFileName = LangTypeVS.POWER_UP
+        self.langFileName = LangTypeSur.POWER_UP
 
         self.defaultFrameName = "frameD.png"
 
@@ -936,7 +936,7 @@ class EnemyImageGenerator(TableGenerator):
         self.dataSpriteKey = "frameNames"
         self.dataTextureKey = "textureName"
         self.dataObjectKey = "bName"
-        self.langFileName = LangTypeVS.ENEMIES
+        self.langFileName = LangTypeSur.ENEMIES
         self.dataAnimFramesKey = "idleFrameCount"
 
         self.folderToSave = "enemy"
@@ -1028,7 +1028,7 @@ class StageImageGenerator(TableGenerator):
         self.dataSpriteKey = "uiFrame"
         self.dataTextureKey = "uiTexture"
         self.dataObjectKey = "stageName"
-        self.langFileName = LangTypeVS.STAGE
+        self.langFileName = LangTypeSur.STAGE
 
         self.folderToSave = "stage"
 
