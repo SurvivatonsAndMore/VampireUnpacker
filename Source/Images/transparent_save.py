@@ -189,15 +189,15 @@ def save_transparent_apng(images: list[Image], durations: Union[int, list[int]],
 
 
 SAVE_DATA: list[tuple[str, str, Callable[[list[Image], Union[int, list[int]], PathLike], None]]] = [
-    (".gif", "gif", save_transparent_gif),
-    (".gif", "gif_a50", lambda *x: save_transparent_gif(*x, alpha_threshold=50)),
-    (".webp", "webp", save_transparent_webp),
-    (".png", "apng", save_transparent_apng),
+    (".gif", "GIF", save_transparent_gif),
+    (".gif", "GIF_a50", lambda *x: save_transparent_gif(*x, alpha_threshold=50)),
+    (".webp", "WEBP", save_transparent_webp),
+    (".png", "AnimPNG", save_transparent_apng),
 ]
 
 ANIM_SAVE_TYPES: list[str] = [
-    "gif",
-    "gif|alpha>=50",
-    "webp",
-    "apng"
+    "GIF",
+    "GIF|only with pixels with alpha >=50",
+    "WEBP",
+    "AnimPNG"
 ]

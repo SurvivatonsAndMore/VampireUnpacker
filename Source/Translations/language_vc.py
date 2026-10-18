@@ -17,9 +17,11 @@ from Source.Utility.unity_parser import UnityDoc, UnityEntry, UnityLocalizedRefe
 class LangTypeVC(Enum):
     ACHIEVEMENT = "Achievements"
     ARCANA = "Arcanas"
+    BLUEBERRIES = "Blueberries"
     CARDS = "Cards"
     COMMON = "Common"
     CREDITS = "Credits"
+    DIALOGUE = "Dialogue"
     DUNGEONS = "Dungeons"
     EFFECTS = "Effects"
     GEMS = "Gems"
@@ -32,12 +34,25 @@ class LangTypeVC(Enum):
 @dataclasses.dataclass
 class LangFileVC:
     lang_type: LangTypeVC
-    guid: str = None
-    name: str = None
+    guid: str
+    name: str
     _data: dict[Lang, dict[int, str]] = dataclasses.field(default_factory=dict)
     _key_to_id: dict[str, int] = dataclasses.field(default_factory=dict)
-    _paths: dict[Lang, Path] = None
+    _paths: dict[Lang, Path] = dataclasses.field(default_factory=dict)
     _raw: dict[Lang, str] = dataclasses.field(default_factory=dict)
+
+    def __post_init__(self):
+        langs_list = [f" {SHARED_DATA}", *[f"_{l.value}" for l in Lang.get_vc()]]
+        langs_list = [f"{self.lang_type.value}{l}" for l in langs_list]
+        paths = list(map(MetaDataHandler.get_path_by_name_no_meta, langs_list))
+        self._paths = dict(zip([Lang.SHARED_DATA, *Lang.get_vc()], paths))
+
+        shared_entry = self.__load_lang(Lang.SHARED_DATA)
+        self._key_to_id = {key: _id for _id, key in self._data[Lang.SHARED_DATA].items()}
+
+        self.name = shared_entry.data.get('m_TableCollectionName')
+        self.guid = shared_entry.data.get('m_TableCollectionNameGuidString')
+        assert self.guid is not None
 
     @staticmethod
     def __get_data_from_entry(entry: UnityEntry) -> dict[int, str]:
@@ -56,19 +71,6 @@ class LangFileVC:
         self._data[lang] = self.__get_data_from_entry(entry)
         self._raw[lang] = text
         return entry
-
-    def __post_init__(self):
-        langs_list = [f" {SHARED_DATA}", *[f"_{l.value}" for l in Lang.get_vc()]]
-        langs_list = [f"{self.lang_type.value}{l}" for l in langs_list]
-        paths = list(map(MetaDataHandler.get_path_by_name_no_meta, langs_list))
-        self._paths = dict(zip([Lang.SHARED_DATA, *Lang.get_vc()], paths))
-
-        shared_entry = self.__load_lang(Lang.SHARED_DATA)
-        self._key_to_id = {key: _id for _id, key in self._data[Lang.SHARED_DATA].items()}
-
-        self.name = shared_entry.data.get('m_TableCollectionName')
-        self.guid = shared_entry.data.get('m_TableCollectionNameGuidString')
-        assert self.guid is not None
 
     def get(self, lang: Lang) -> dict[int, str]:
         self.__load_lang(lang)

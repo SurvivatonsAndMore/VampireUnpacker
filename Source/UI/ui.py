@@ -6,8 +6,9 @@ from typing import Iterable
 from Source.Config.config import Config, DLC, CfgKey, Game
 from Source.Data import game_version, data_vc, data_sur
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
-from Source.Images import transparent_save, image_gen_sur
+from Source.Images import transparent_save, image_gen_sur, image_gen_types
 from Source.Images.image_gen_general import generate_images_by_meta, generate_animation_by_meta
+from Source.Images.image_gen_types import GenType
 from Source.Translations import language_vc, language_sur
 from Source.Utility import image_functions
 from Source.Utility.constants import to_source_path, IMAGES_FOLDER, GENERATED, COMPOUND_DATA_TYPE, COMPOUND_DATA, \
@@ -24,6 +25,9 @@ class UIBase:
         self._last_loaded_folder: Path | None = None
 
         MetaDataHandler.register(MetaDataHandler.Emit.BEFORE_LOAD, lambda *_: data_sur.DataHandler.unload())
+        MetaDataHandler.register(MetaDataHandler.Emit.BEFORE_LOAD, lambda *_: language_sur.LangHandler.unload())
+
+    ### regular gui
 
     @staticmethod
     def ask_open_file_name(title: str = "Select file", initialdir: str | PathLike[str] | None = None,
@@ -61,6 +65,20 @@ class UIBase:
     def show_error(title: str | None = None, message: str | None = None, **options) -> None:
         raise NotImplementedError()
 
+    ### special gui
+
+    def progress_bar_set_percent(self, current: int | float, total: int | float, add_text: str = "") -> None:
+        raise NotImplementedError()
+
+    def progress_bar_set_sec(self, seconds: float, add_text: str = "") -> None:
+        raise NotImplementedError()
+
+    def open_last_loaded_folder(self) -> None:
+        raise NotImplementedError()
+
+    def change_config(self) -> None:
+        raise NotImplementedError()
+
     def show_popup(self, popup: BasePopup) -> None:
         match popup:
             case InfoPopup(t, m):
@@ -70,12 +88,6 @@ class UIBase:
             case ErrorPopup(t, m):
                 self.show_error(t, m)
 
-    def progress_bar_set_percent(self, current: int | float, total: int | float, add_text: str = "") -> None:
-        raise NotImplementedError()
-
-    def progress_bar_set_sec(self, seconds: float, add_text: str = "") -> None:
-        raise NotImplementedError()
-
     def check_boxes[T](self, list_to_boxes: list[T], title="", label: str | list[str] = "", width: int = 300) -> \
             list[bool] | None:
         raise NotImplementedError()
@@ -84,10 +96,8 @@ class UIBase:
                        width: int = 300) -> T | None:
         raise NotImplementedError()
 
-    def open_last_loaded_folder(self) -> None:
-        raise NotImplementedError()
-
-    def change_config(self) -> None:
+    def generator_dialog(self, data_type: data_sur.DataType, available_gens: list[GenType],
+                         defaults: dict[GenType, int | float | bool], parent=None):
         raise NotImplementedError()
 
     ###
@@ -389,8 +399,33 @@ class UIBase:
         if not selected_data:
             return
 
-        self._last_loaded_folder = image_gen_sur.gen_unified_images(selected_dlc, selected_data,
-                                                                    self.progress_bar_set_percent, parent=self)
+        gen_class = image_gen_sur.ImageGeneratorManager.get_gen(selected_data)
+
+        if not gen_class:
+            return
+
+        req_gens = self.generator_dialog(
+            selected_data,
+            gen_class.get_available_gens(),
+            gen_class.get_defaults(),
+            parent=self
+        )
+
+        if not req_gens:
+            return
+
+        selected_anim_types = None
+        if image_gen_types.has_requested_anim(req_gens):
+            selected_anim_types: list[bool] | None = self.check_boxes(
+                transparent_save.ANIM_SAVE_TYPES,
+                label="Select animation extension to use.\n(GIF does not support partial transparency)",
+                title="Select anim types")
+
+            if not selected_anim_types or not any(selected_anim_types):
+                return
+
+        gen = gen_class(selected_dlc, req_gens)
+        self._last_loaded_folder = gen.start_generator(selected_anim_types, self.progress_bar_set_percent)
 
     def get_unified_audio_vs(self):
         from req_test import check_pydub

@@ -112,8 +112,13 @@ class LangFile:
 
 
 class LangHandler(Objectless):
-    _full_file: LangFile = None
+    _full_file: LangFile | None = None
     _loaded_data: dict[LangTypeSur, LangFile] = {}
+
+    @classmethod
+    def unload(cls):
+        cls._full_file = None
+        cls._loaded_data.clear()
 
     @classmethod
     def __load_i2languages(cls):
@@ -184,6 +189,11 @@ class LangHandler(Objectless):
     def get_lang_file(cls, lang_type: LangTypeSur) -> LangFile | None:
         cls.__load_separate()
         return cls._loaded_data.get(lang_type)
+
+    @classmethod
+    def get_lang_types(cls) -> set[LangTypeSur]:
+        cls.__load_separate()
+        return set(cls._loaded_data.keys())
 
 
 def gen_changed_list_to_dict(lang_file: LangFile) -> dict[str, Any]:
@@ -348,8 +358,10 @@ def dump_split_i2l(
 
 
 def make_meta_file_split_folder_structure() -> Path:
+    loaded_lang_types = LangHandler.get_lang_types()
+
     save_path = to_current_game_path(TRANSLATIONS_FOLDER) / GENERATED / "Metadata.json"
-    folder_metadata = [lang_type.value for lang_type in LangTypeSur.get_all_types()]
+    folder_metadata = [lang_type.value for lang_type in LangTypeSur.get_all_types() if lang_type in loaded_lang_types]
     save_path.write_text(json.dumps(sorted(folder_metadata), ensure_ascii=False, indent=2))
     return save_path
 

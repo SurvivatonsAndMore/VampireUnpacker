@@ -6,8 +6,10 @@ from tkinter import simpledialog, messagebox, filedialog, ttk
 from typing import Iterable, Callable
 
 from Source.Config.config import Game, Config
+from Source.Data import data_sur
 from Source.Data.meta_data import MetaDataHandler
-from Source.UI.boxes_tkinter import CheckBoxes, ButtonsBox
+from Source.Images.image_gen_types import GenType
+from Source.UI.boxes_tkinter import CheckBoxes, ButtonsBox, GeneratorDialog
 from Source.UI.ui import UIBase
 from Source.Utility.constants import IS_DEBUG, ROOT_FOLDER
 from Source.Utility.logger import Logger
@@ -40,7 +42,7 @@ class UITkinter(tk.Tk, UIBase):
         self.title(self._title_text)
         self.iconphoto(True, tk.PhotoImage(file=self._icon_path, master=self))
 
-        self.__update_progress_bar: Callable[[int | float, str, str], None] = lambda x,y,z: None
+        self.__update_progress_bar: Callable[[int | float, str, str], None] = lambda x, y, z: None
         self.__update_loaded_metadata: Callable[[Game.VS], None] = lambda x: None
 
         self._main_frame = ttk.Frame(self)
@@ -398,6 +400,8 @@ class UITkinter(tk.Tk, UIBase):
             command=self.create_inverse_tilemap
         ).grid(row=0, column=1)
 
+    ###
+
     @staticmethod
     def ask_open_file_name(title: str = "Select file", initialdir: str | os.PathLike[str] | None = None,
                            filetypes: Iterable[tuple[str, str | list[str]]] | None = None) -> Path | None:
@@ -457,6 +461,13 @@ class UITkinter(tk.Tk, UIBase):
     def buttons_box[T](self, list_to_texts: list[T], title="", label: str | list[str] = "",
                        width: int = 300) -> T | None:
         return ButtonsBox.execute(list_to_texts, title=title, label=label, parent=self, width=width)
+
+    def generator_dialog(self,
+                         data_type: data_sur.DataType,
+                         available_gens: list[GenType],
+                         defaults: dict[GenType, int | float | bool],
+                         parent=None) -> dict[GenType, int | float | bool] | None:
+        return GeneratorDialog.execute(data_type, available_gens, defaults, parent=parent)
 
 
 if __name__ == '__main__':

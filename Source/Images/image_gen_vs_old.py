@@ -42,7 +42,7 @@ class OldDataType(Enum):
     MUSIC = 12
 
 
-class GenType(Enum):
+class GenTypeOld(Enum):
     SCALE = 0
     FRAME = 1
     ANIM = 2
@@ -110,7 +110,7 @@ class ImageGenerator:
 
         self.animLeadingZeros = None
 
-        self.available_gen = [GenType.SCALE, GenType.FRAME]
+        self.available_gen = [GenTypeOld.SCALE, GenTypeOld.FRAME]
 
     def textures_set(self, data):
         pass
@@ -132,9 +132,9 @@ class ImageGenerator:
 
     @staticmethod
     def is_anim(settings):
-        return (settings.get(str(GenType.ANIM)) or
-                settings.get(str(GenType.SPECIAL_ANIM)) or
-                settings.get(str(GenType.DEATH_ANIM)))
+        return (settings.get(str(GenTypeOld.ANIM)) or
+                settings.get(str(GenTypeOld.SPECIAL_ANIM)) or
+                settings.get(str(GenTypeOld.DEATH_ANIM)))
 
     @staticmethod
     def get_frame(frame_name, meta, im):
@@ -413,10 +413,10 @@ class SimpleGenerator(ImageGenerator):
         if osfp := obj.get("save_folder_postfix"):
             save_folder += osfp
 
-        using_list = obj.get("for", GenType.main_list())
-        scale_factor = settings[str(GenType.SCALE)]
+        using_list = obj.get("for", GenTypeOld.main_list())
+        scale_factor = settings[str(GenTypeOld.SCALE)]
 
-        if GenType.SCALE in using_list:
+        if GenTypeOld.SCALE in using_list:
             if self.assets_type in [OldDataType.ENEMY]:
                 prep = self.get_prepared_frame(file_name)
                 prep_i = self.get_prepared_frame(file_name, "i")
@@ -425,14 +425,14 @@ class SimpleGenerator(ImageGenerator):
                                        leading_zeros=prep_i[1], file_name_clean=prep_i[2], add_data={"prep": prep})
             else:
                 im_obj = self.save_png(meta, im, file_name, name, save_folder, scale_factor=scale_factor,
-                                       is_save=GenType.SCALE not in obj.get("not_save", []))
+                                       is_save=GenTypeOld.SCALE not in obj.get("not_save", []))
 
-        if settings.get(str(GenType.FRAME)) and GenType.FRAME in using_list:
+        if settings.get(str(GenTypeOld.FRAME)) and GenTypeOld.FRAME in using_list:
             im_frame = self.get_frame(frame_name, *func_meta("UI"))
             if im_frame or self.assets_type in [OldDataType.STAGE, OldDataType.STAGE_SET]:
                 self.save_png_icon(im_frame, im_obj, name, save_folder, scale_factor=scale_factor, add_data=add_data)
 
-        if settings.get(str(GenType.ANIM)) and GenType.ANIM in using_list:
+        if settings.get(str(GenTypeOld.ANIM)) and GenTypeOld.ANIM in using_list:
             if self.assets_type in [OldDataType.ENEMY]:
                 prep = self.get_prepared_frame(file_name, "i")
                 self.save_anim(meta, prep[0], name, save_folder, scale_factor=scale_factor, add_data=add_data)
@@ -447,12 +447,12 @@ class SimpleGenerator(ImageGenerator):
                                frame_rate=obj.get("walkFrameRate", DEFAULT_ANIMATION_FRAME_RATE),
                                scale_factor=scale_factor, add_data=add_data)
 
-        if settings.get(str(GenType.DEATH_ANIM)) and GenType.DEATH_ANIM in using_list:
+        if settings.get(str(GenTypeOld.DEATH_ANIM)) and GenTypeOld.DEATH_ANIM in using_list:
             prep = self.get_prepared_frame(file_name)
             self.save_anim(meta, prep[0], name, save_folder, prefix_name="Animated-Death-", save_append="_death",
                            frame_rate=20, scale_factor=scale_factor, add_data=add_data)
 
-        if settings.get(str(GenType.SPECIAL_ANIM)) and GenType.SPECIAL_ANIM in using_list:
+        if settings.get(str(GenTypeOld.SPECIAL_ANIM)) and GenTypeOld.SPECIAL_ANIM in using_list:
             prep = self.get_prepared_frame(file_name)
             self.save_anim(meta, prep[0], name, save_folder, prefix_name="Animated-",
                            postfix_name=obj.get("postfix_name"), save_append="_special",
@@ -475,7 +475,7 @@ class ItemImageGenerator(SimpleGenerator):
         self.langFileName = LangTypeSur.ITEM
         self.defaultFrameName = "frameC.png"
 
-        self.available_gen.extend([GenType.ANIM])
+        self.available_gen.extend([GenTypeOld.ANIM])
 
     def get_frame_name(self, obj):
         return obj.get(self.frameKey, self.defaultFrameName if not obj.get("isRelic") else "frameF.png")
@@ -515,7 +515,7 @@ class ArcanaImageGenerator(SimpleGenerator):
             add_folder = "/dark" if vv.get("arcanaType") >= 22 else ""
 
             vv.update({
-                "for": [GenType.SCALE],
+                "for": [GenTypeOld.SCALE],
                 "save_folder": f"{add_folder}/picture"
             })
             yield k, vv
@@ -541,8 +541,8 @@ class PropsImageGenerator(SimpleGenerator):
 
         self.animLeadingZeros = -1
 
-        self.available_gen.remove(GenType.FRAME)
-        self.available_gen.append(GenType.ANIM)
+        self.available_gen.remove(GenTypeOld.FRAME)
+        self.available_gen.append(GenTypeOld.ANIM)
 
 
 class AdvMerchantsGenerator(SimpleGenerator):
@@ -560,8 +560,8 @@ class AdvMerchantsGenerator(SimpleGenerator):
 
         self.animLeadingZeros = 2
 
-        self.available_gen.remove(GenType.FRAME)
-        self.available_gen.append(GenType.ANIM)
+        self.available_gen.remove(GenTypeOld.FRAME)
+        self.available_gen.append(GenTypeOld.ANIM)
 
 
 class AlbumCoversGenerator(SimpleGenerator):
@@ -577,7 +577,7 @@ class AlbumCoversGenerator(SimpleGenerator):
         self.folderToSave = "album covers"
         self.imagePrefix = "Album-"
 
-        self.available_gen.remove(GenType.FRAME)
+        self.available_gen.remove(GenTypeOld.FRAME)
 
 
 class MusicIconsGenerator(SimpleGenerator):
@@ -593,7 +593,7 @@ class MusicIconsGenerator(SimpleGenerator):
         self.folderToSave = "music icons"
         self.imagePrefix = "Music-"
 
-        self.available_gen.remove(GenType.FRAME)
+        self.available_gen.remove(GenTypeOld.FRAME)
 
     def get_name_clear_path(self, obj, name, lang_data, add_data) -> (str, str, str):
         add_save_path = ""
@@ -625,8 +625,8 @@ class HitVFXGenerator(SimpleGenerator):
 
         self.folderToSave = "hit vfx"
 
-        self.available_gen.remove(GenType.FRAME)
-        self.available_gen.append(GenType.ANIM)
+        self.available_gen.remove(GenTypeOld.FRAME)
+        self.available_gen.append(GenTypeOld.ANIM)
 
     def textures_set(self, data: dict) -> set:
         return {self.dataTextureName}
@@ -668,7 +668,7 @@ class CharacterImageGenerator(TableGenerator):
         self.dataAnimFramesKey = "walkingFrames"
         self.iconPrefix = "Select"
 
-        self.available_gen.extend([GenType.ANIM, GenType.SPECIAL_ANIM])
+        self.available_gen.extend([GenTypeOld.ANIM, GenTypeOld.SPECIAL_ANIM])
 
     def get_name_clear_path(self, obj, name, lang_data, add_data) -> (str, str, str):
         add_save_path = ""
@@ -768,7 +768,7 @@ class CharacterImageGenerator(TableGenerator):
                         char.update({
                             "textureName": skin.get("charSelTexture") or v.get("charSelTexture"),
                             "spriteName": skin.get("charSelFrame") or v.get("charSelFrame"),
-                            "for": [GenType.SCALE, GenType.FRAME],
+                            "for": [GenTypeOld.SCALE, GenTypeOld.FRAME],
                             "save_folder_postfix": "/select",
                             "is_select": True
                         })
@@ -790,7 +790,7 @@ class CharacterImageGenerator(TableGenerator):
                                 char.update({
                                     "animType": anim_type,
                                     "postfix_name": f"-{"-".join(postfix_words)}",
-                                    "for": [GenType.SPECIAL_ANIM],
+                                    "for": [GenTypeOld.SPECIAL_ANIM],
 
                                     "defaultStartingWeapon": v.get("startingWeapon"),
 
@@ -941,8 +941,8 @@ class EnemyImageGenerator(TableGenerator):
 
         self.folderToSave = "enemy"
 
-        self.available_gen.remove(GenType.FRAME)
-        self.available_gen.extend([GenType.ANIM, GenType.DEATH_ANIM])
+        self.available_gen.remove(GenTypeOld.FRAME)
+        self.available_gen.extend([GenTypeOld.ANIM, GenTypeOld.DEATH_ANIM])
 
     @staticmethod
     def len_data(data: dict):
