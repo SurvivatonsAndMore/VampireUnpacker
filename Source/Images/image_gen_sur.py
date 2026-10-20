@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import re
 import sys
+import itertools
+import dataclasses
 from pathlib import Path
 from typing import Any, Callable
 
@@ -41,20 +43,41 @@ ADD_TO_PATH_ENTRY2 = "_add_to_path_entry2"
 UNIQUE_SHORT_CHARACTER_NAME = "_unique_short_character_name"
 FULL_CHARACTER_NAME = "_full_character_name"
 DEFAULT = "DEFAULT"
+SAVE_POSTFIX = "_save_postfix"
 
 FONT_FILE_PATH = to_source_path(IMAGES_FOLDER) / "Courier.ttf"
 
+_UNSAVABLE_CHARACTERS = re.compile(r'[<>:/|\\?*\"]')
+
+
+def get_save_name(name: str) -> str:
+    return _UNSAVABLE_CHARACTERS.sub('', name.strip())
+
+
+@dataclasses.dataclass
+class NameToSave:
+    prefix: str
+    name: str
+    postfix: str
+
+    def __str__(self) -> str:
+        return get_save_name(f"{self.prefix}-{self.name}{self.postfix}")
+
+    def str_ext(self, ext: str):
+        return f"{self!s}{ext}"
+
+    def w(self, *, prefix: str | None = None, name: str | None = None, postfix: str | None = None) -> NameToSave:
+        return NameToSave(prefix or self.prefix, name or self.name, postfix or self.postfix)
+
 
 class EntryToSave:
-    name: str
-    name_wrapper: Callable[[str], str]
+    name: NameToSave
     add_to_path: str | None = None
 
     _used_mkdir: set[Path] = set()
 
-    def __init__(self, name: str, name_wrapper: Callable[[str], str], add_to_path: str | None = None) -> None:
+    def __init__(self, name: NameToSave, add_to_path: str | None = None) -> None:
         self.name = name
-        self.name_wrapper = name_wrapper
         self.add_to_path = add_to_path
 
     def save_entry(self,
@@ -66,9 +89,9 @@ class EntryToSave:
         entry_save_path = save_path / entry.get("contentGroup", "BASE_GAME")
         key_id = entry.get(KEY_ID)
 
-        if self.name == key_id:
+        if self.name.name == key_id:
             entry_save_path /= "No lang"
-            
+
         if entry.get("alwaysHidden"):
             entry_save_path /= "Always hidden"
 
@@ -88,31 +111,29 @@ class EntryToSave:
             entry_save_path.mkdir(parents=True, exist_ok=True)
             EntryToSave._used_mkdir.add(entry_save_path)
 
-        self._save(entry_save_path / self.name_wrapper(self.name), scale)
+        self._save(entry_save_path, scale)
 
-    def _save(self, save_file_path: Path, scale: int) -> None:
+    def _save(self, save_folder_path: Path, scale: int) -> None:
         raise NotImplementedError()
 
 
 class ImageEntryToSave(EntryToSave):
     image: Image
 
-    def __init__(self, image: Image, name: str, name_wrapper: Callable[[str], str],
-                 add_to_path: str | None = None) -> None:
-        super().__init__(name, name_wrapper, add_to_path)
+    def __init__(self, image: Image, name: NameToSave, add_to_path: str | None = None) -> None:
+        super().__init__(name, add_to_path=add_to_path)
         self.image = image
 
-    def _save(self, save_file_path: Path, scale: int) -> None:
+    def _save(self, save_folder_path: Path, scale: int) -> None:
         image = resize_image(self.image, scale)
-        image.save(save_file_path)
+        image.save(save_folder_path / self.name.str_ext(".png"))
 
 
 class SpriteEntryToSave(ImageEntryToSave):
     sprite_data: SpriteData
 
-    def __init__(self, sprite_data: SpriteData, name: str, name_wrapper: Callable[[str], str],
-                 add_to_path: str | None = None) -> None:
-        super().__init__(sprite_data.sprite, name, name_wrapper, add_to_path)
+    def __init__(self, sprite_data: SpriteData, name: NameToSave, add_to_path: str | None = None) -> None:
+        super().__init__(sprite_data.sprite, name, add_to_path=add_to_path)
         self.sprite_data = sprite_data
 
 
@@ -121,28 +142,25 @@ class AnimationEntryToSave(EntryToSave):
     frame_rate: int
     anim_save_types: list[bool]
 
-    def __init__(self, animation_data: AnimationData, name: str, name_wrapper: Callable[[str], str],
-                 frame_rate: int, anim_save_types: list[bool], add_to_path: str | None = None) -> None:
-        super().__init__(name, name_wrapper, add_to_path)
+    def __init__(self, animation_data: AnimationData, name: NameToSave, frame_rate: int, anim_save_types: list[bool],
+                 add_to_path: str | None = None) -> None:
+        super().__init__(name, add_to_path=add_to_path)
         self.animation_data = animation_data
         self.frame_rate = frame_rate
         self.anim_save_types = anim_save_types
 
-    def _save(self, save_file_path: Path, scale: int) -> None:
+    def _save(self, save_folder_path: Path, scale: int) -> None:
         sprites_list = image_functions.get_anim_sprites_ready(self.animation_data)
         sprites_list = image_functions.resize_list_images(sprites_list, scale)
 
         duration = 1000 // self.frame_rate
-
-        name = save_file_path.name
-        save_folder_path = save_file_path.parent
 
         for i, is_save_type in enumerate(self.anim_save_types):
             if is_save_type:
                 ext, folder, func = transparent_save.SAVE_DATA[i]
                 save_path = save_folder_path / folder
                 save_path.mkdir(parents=True, exist_ok=True)
-                func(sprites_list, duration, save_path / f"{name}{ext}")
+                func(sprites_list, duration, save_path / self.name.str_ext(ext))
 
 
 class ImageGeneratorManager:
@@ -170,7 +188,7 @@ class ImageGeneratorManager:
             case DataType.CUSTOM_MERCHANTS:
                 return CustomMerchantsGenerator
             case DataType.ENEMY:
-                return None  # EnemyImageGenerator
+                return EnemyImageGenerator
             case DataType.HIT_VFX:
                 return None
             case DataType.ITEM:
@@ -195,9 +213,6 @@ class ImageGeneratorManager:
 
 def get_supported_gen_types() -> set[DataType]:
     return set(filter(ImageGeneratorManager.get_gen, DataType.get_all_types()))
-
-
-_UNSAVABLE_CHARACTERS = re.compile(r'[<>:/|\\?*\"]')
 
 
 class BaseImageGenerator:
@@ -231,21 +246,24 @@ class BaseImageGenerator:
             GenType.TEXT_STROKE_WIDTH: cls.default_text_stroke_width,
         }
 
-    def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE | None,
-                 requested_gen_types: dict[GenType, int | float | bool]):
+    def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE | None, requested_gens: dict[GenType, int | float | bool]):
         self.dlc_type = dlc_type
         if dlc_type is None:
             self._is_initialized = False
             return
 
-        self.data_file: DataFile | None = DataHandler.get_data(dlc_type, self.data_type)
+        df: DataFile | None = DataHandler.get_data(dlc_type, self.data_type)
+        if df is None:
+            print(f"!!! Data file {self.data_type} not found for {dlc_type}")
+            return
+        self.data_file = df
 
         self.lang_data: dict[str, Any] = dict()
         if ((lang_data_full := LangHandler.get_lang_file(self.lang_type))
                 and (lang_data := lang_data_full.get_lang(Lang.EN))):
             self.lang_data = lang_data
 
-        self.requested_gens = requested_gen_types
+        self.requested_gens = requested_gens
         self.scale = int(self.requested_gens[GenType.IMAGE])
         self._set_entries()
 
@@ -266,9 +284,12 @@ class BaseImageGenerator:
         self.selected_anim_types = None
 
     def _set_entries(self):
-        self.entries = [
-            self.get_unit(key_id, entry.copy()) for key_id, entry in self.data_file.data().items()
-        ]
+        self.entries = []
+        self.entries_dict = {}
+        for key_id, entry in self.data_file.data().items():
+            e = self.get_unit(key_id, entry.copy())
+            self.entries.append(e)
+            self.entries_dict[key_id] = e
 
     def generation_loop(self, *,
                         entries: list,
@@ -331,9 +352,6 @@ class BaseImageGenerator:
     def get_available_gens(cls) -> list[GenType]:
         return cls._available_gens
 
-    def get_save_name(self, name: str) -> str:
-        return _UNSAVABLE_CHARACTERS.sub('', name.strip())
-
     def get_save_image_prefix(self, entry):
         return self.save_image_prefix
 
@@ -342,6 +360,10 @@ class BaseImageGenerator:
 
     def get_save_anim_prefix(self, entry):
         return self.save_anim_prefix
+
+    def get_save_image_postfix(self, entry):
+        postfix = entry.get(SAVE_POSTFIX)
+        return '' if postfix is None else postfix
 
     def get_unit(self, key_id: str, entry: dict[str, Any] | list[dict[str, Any]]) -> dict[str, Any]:
         assert isinstance(entry, dict)
@@ -390,12 +412,13 @@ class BaseImageGenerator:
 
         eng_name = entry.get(self.key_entry_name) or entry[KEY_ID]
 
-        save_image_prefix = self.get_save_image_prefix(entry)
-
         return SpriteEntryToSave(
             sprite_data,
-            eng_name,
-            lambda x: f"{save_image_prefix}-{self.get_save_name(x)}.png"
+            NameToSave(
+                self.get_save_image_prefix(entry),
+                eng_name,
+                self.get_save_image_postfix(entry)
+            )
         )
 
     def gen_image_with_frame(self, entry: dict[str, Any]) -> ImageEntryToSave | None:
@@ -404,7 +427,6 @@ class BaseImageGenerator:
             return None
 
         image_data = out_image_data.sprite_data
-        eng_name = out_image_data.name
         frame_name = self.get_frame_name(entry)
 
         texture_meta_data = self.meta_data.get(UI)
@@ -422,12 +444,9 @@ class BaseImageGenerator:
 
         frame.alpha_composite(image)
 
-        save_icon_prefix = self.get_save_icon_prefix(entry)
-
         return ImageEntryToSave(
             frame,
-            eng_name,
-            lambda x: f"{save_icon_prefix}-{self.get_save_name(x)}.png"
+            out_image_data.name.w(prefix=self.get_save_icon_prefix(entry))
         )
 
     def gen_anim(self, entry: dict[str, Any]) -> AnimationEntryToSave | None:
@@ -436,27 +455,30 @@ class BaseImageGenerator:
 
         texture_meta_data = self.meta_data.get(main_texture)
         if not texture_meta_data:
-            print(f"!!! Anim skipped '{sprite_texture}': texture '{main_texture}' not found", file=sys.stderr)
+            print(f"!!! Anim skipped '{sprite_texture}': not found texture '{main_texture}'", file=sys.stderr)
             return None
 
         sprite_data = texture_meta_data.data_name.get(sprite_texture) or texture_meta_data.data_id.get(0)
         if not sprite_data:
-            print(f"!!! Anim skipped '{sprite_texture}': not found for texture '{main_texture}'", file=sys.stderr)
+            print(f"!!! Anim skipped '{sprite_texture}': not found sprite for texture '{main_texture}'",
+                  file=sys.stderr)
             return None
 
         if not sprite_data.animation:
-            print(f"!!! Anim skipped '{sprite_texture}': not found animation", file=sys.stderr)
+            print(f"!!! Anim skipped '{sprite_texture}': not found animation for texture '{main_texture}'",
+                  file=sys.stderr)
             return None
 
         eng_name = entry.get(self.key_entry_name) or entry[KEY_ID]
         frame_rate = entry.get(self.key_frame_rate_name, DEFAULT_ANIMATION_FRAME_RATE)
 
-        save_anim_prefix = self.get_save_anim_prefix(entry)
-
         return AnimationEntryToSave(
             sprite_data.animation,
-            eng_name,
-            lambda x: f"{save_anim_prefix}-{self.get_save_name(x)}",
+            NameToSave(
+                self.get_save_anim_prefix(entry),
+                eng_name,
+                self.get_save_image_postfix(entry)
+            ),
             frame_rate=frame_rate,
             anim_save_types=self.selected_anim_types
         )
@@ -506,9 +528,6 @@ class ArcanaImageGenerator(BaseImageGenerator):
     key_secondary_texture_name = "texture2"
 
     main_texture_name = "tps_props"
-
-    def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE, requested_gen_types: dict[GenType, int | bool]):
-        super().__init__(dlc_type, requested_gen_types)
 
     def _set_entries(self):
         super()._set_entries()
@@ -614,12 +633,14 @@ class ArcanaImageGenerator(BaseImageGenerator):
             return None
 
         eng_name = entry.get(self.key_entry_name) or entry[KEY_ID]
-        save_image_prefix = self.get_save_image_prefix(entry)
 
         return SpriteEntryToSave(
             sprite_data,
-            eng_name,
-            lambda x: f"{save_image_prefix}-{self.get_save_name(x)}.png"
+            NameToSave(
+                self.get_save_image_prefix(entry),
+                eng_name,
+                self.get_save_image_postfix(entry)
+            )
         )
 
 
@@ -799,34 +820,15 @@ class CharacterImageGenerator(ListBaseImageGenerator):
 
     _weapon_image_gen: WeaponImageGenerator = WeaponImageGenerator(None, {})
 
-    def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE, requested_gen_types: dict[GenType, int | bool]):
-        super().__init__(dlc_type, requested_gen_types)
-
+    def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE, requested_gens: dict[GenType, int | bool]):
         if not CharacterImageGenerator._weapon_image_gen._is_initialized:
             CharacterImageGenerator._weapon_image_gen = WeaponImageGenerator(COMPOUND_DATA,
                                                                              {GenType.IMAGE: 1})
 
-        if requested_gen_types.get(GenType.IMAGE_FRAME):
+        super().__init__(dlc_type, requested_gens)
+
+        if requested_gens.get(GenType.IMAGE_FRAME):
             self.frame_image = image_open(to_source_path(IMAGES_FOLDER) / self.default_frame_name)
-
-        self.weapon_skin_entries = []
-        self.select_entries = []
-        self.select_skin_entries = []
-        self.weapon_select_skin_entries = []
-
-        if requested_gen_types.get(GenType.CHARACTER_SKINS):
-            self.weapon_skin_entries = self.get_weapon_entries(self.skin_entries)
-
-        if requested_gen_types.get(GenType.CHARACTER_SPECIAL_SELECT):
-            self.select_entries = self.get_select_entries(self.entries)
-            if requested_gen_types.get(GenType.CHARACTER_SKINS):
-                self.select_skin_entries = self.get_select_entries(self.skin_entries)
-                self.weapon_select_skin_entries = self.get_weapon_entries(self.select_skin_entries)
-
-        if requested_gen_types.get(GenType.ANIM_SPECIAL):
-            self.special_anim_entries = self.get_special_anim_entries(self.entries)
-            if requested_gen_types.get(GenType.CHARACTER_SKINS):
-                self.special_anim_skin_entries = self.get_special_anim_entries(self.skin_entries)
 
     def _set_entries(self):
         super()._set_entries()
@@ -837,6 +839,27 @@ class CharacterImageGenerator(ListBaseImageGenerator):
         self.base_entries = self.entries.copy()
         self.skin_entries = self.get_skin_entries(self.entries)
         self.entries = list(filter(lambda x: x.get(SKIN_TYPE, DEFAULT) == DEFAULT, self.skin_entries))
+
+        self.weapon_skin_entries = []
+        self.select_entries = []
+        self.select_skin_entries = []
+        self.weapon_select_skin_entries = []
+        self.special_anim_entries = []
+        self.special_anim_skin_entries = []
+
+        if self.requested_gens.get(GenType.CHARACTER_SKINS):
+            self.weapon_skin_entries = self.get_weapon_entries(self.skin_entries)
+
+        if self.requested_gens.get(GenType.CHARACTER_SPECIAL_SELECT):
+            self.select_entries = self.get_select_entries(self.entries)
+            if self.requested_gens.get(GenType.CHARACTER_SKINS):
+                self.select_skin_entries = self.get_select_entries(self.skin_entries)
+                self.weapon_select_skin_entries = self.get_weapon_entries(self.select_skin_entries)
+
+        if self.requested_gens.get(GenType.ANIM_SPECIAL):
+            self.special_anim_entries = self.get_special_anim_entries(self.entries)
+            if self.requested_gens.get(GenType.CHARACTER_SKINS):
+                self.special_anim_skin_entries = self.get_special_anim_entries(self.skin_entries)
 
     def get_textures_set(self, entries: list[dict[str, Any]] | None = None) -> set[str | None]:
         textures_set = super().get_textures_set(self.skin_entries)
@@ -943,8 +966,9 @@ class CharacterImageGenerator(ListBaseImageGenerator):
                     CHAR_NAME: char_name or "",
                     SURNAME: surname or "",
                     SUFFIX: suffix or "",
-                    FULL_CHARACTER_NAME: " ".join(filter(None, [prefix, char_name, surname, suffix])),
-                    SKIN_TYPE: skin_type
+                    FULL_CHARACTER_NAME: " ".join(filter(None, [prefix, char_name, surname])),
+                    SKIN_TYPE: skin_type,
+                    SAVE_POSTFIX: f" {suffix}" if suffix else None,
                 })
                 skin_entries.append(skin_entry)
 
@@ -984,14 +1008,7 @@ class CharacterImageGenerator(ListBaseImageGenerator):
                     continue
 
                 weapon_entry = dict(**entry)
-
-                prefix = entry.get(PREFIX)
-                char_name = entry.get(CHAR_NAME)
-                surname = entry.get(SURNAME)
-
-                weapon_entry.update({
-                    FULL_CHARACTER_NAME: " ".join(filter(None, [prefix, char_name, surname, f"({weapon_lang})"])),
-                })
+                weapon_entry[SAVE_POSTFIX] = f" ({weapon_lang})"
                 weapon_entries.append(weapon_entry)
 
         return weapon_entries
@@ -1044,17 +1061,14 @@ class CharacterImageGenerator(ListBaseImageGenerator):
         if out_image_data is None:
             return None
 
-        image_data = out_image_data.sprite_data
-        eng_name = out_image_data.name
-
-        char_sprite = resize_image(image_data.sprite, 3.8)
+        char_sprite = resize_image(out_image_data.sprite_data.sprite, 3.8)
         frame_image = self.frame_image.copy()
 
         if (weapon_id := entry.get("startingWeapon", 0)) and weapon_id not in ["VOID", "0", 0, None]:
             weapon_image_gen = CharacterImageGenerator._weapon_image_gen
             weapon_data = weapon_image_gen.data_file.data().get(weapon_id)
             if weapon_data is None:
-                print(f"Not found weapon [ID={weapon_id}] for character {eng_name}")
+                print(f"Not found weapon [ID={weapon_id}] for character {out_image_data.name}")
                 return None
 
             weapon_entry = weapon_image_gen.gen_image(weapon_image_gen.get_unit(weapon_id, weapon_data))
@@ -1095,13 +1109,17 @@ class CharacterImageGenerator(ListBaseImageGenerator):
 
         return ImageEntryToSave(
             frame_image,
-            eng_name,
-            lambda x: f"{self.save_icon_prefix}-{self.get_save_name(x)}.png"
+            out_image_data.name.w(prefix=self.get_save_icon_prefix(entry)),
         )
 
 
+_UNDERSCORE_DIGITS = re.compile(r"_(\d+)$")
+_UNDERSCORE_I_DIGITS = re.compile(r"_i(\d+)$")
+
+
 class EnemyImageGenerator(ListBaseImageGenerator):
-    _available_gens: list[GenType] = [GenType.IMAGE]
+    _available_gens: list[GenType] = [GenType.IMAGE,
+                                      GenType.ANIM, GenType.ANIM_DEATH]
 
     data_type: DataType = DataType.ENEMY
     lang_type: LangTypeSur = LangTypeSur.ENEMIES
@@ -1113,9 +1131,116 @@ class EnemyImageGenerator(ListBaseImageGenerator):
     key_frame_name = None
     key_entry_name = "bName"
 
-    def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE, requested_gen_types: dict[GenType, int | bool]):
-        super().__init__(dlc_type, requested_gen_types)
-        raise NotImplementedError(f"{self.__class__.__name__} not implemented")
+    key_frame_rate_name = "_frame_rate"
+
+    death_anim_frame_rate = 20
+
+    def _set_entries(self):
+        super()._set_entries()
+
+        self.base_entries = self.entries.copy()
+        self.bestiary_entries_death, self.non_bestiary_entries_death = self.get_split_entries_death(self.entries_dict)
+        self.entries = self.get_sprite_entries(self.bestiary_entries_death)
+        self.non_bestiary_entries = self.get_sprite_entries(self.non_bestiary_entries_death)
+
+    def get_textures_set(self, entries: list[dict[str, Any]] | None = None) -> set[str | None]:
+        textures_set = super().get_textures_set(self.base_entries)
+        return textures_set
+
+    def main_generator(self) -> None:
+        super().main_generator()
+
+        self.generation_loop(
+            entries=self.non_bestiary_entries,
+            gen_function=self.gen_image,
+            add_to_path="Not in bestiary",
+            required_gen_types={GenType.IMAGE})
+        self.generation_loop(
+            entries=self.non_bestiary_entries,
+            gen_function=self.gen_anim,
+            add_to_path=f"Not in bestiary/{self.save_anim_prefix}",
+            required_gen_types={GenType.IMAGE, GenType.ANIM})
+
+        self.generation_loop(
+            entries=self.bestiary_entries_death,
+            gen_function=self.gen_anim,
+            add_to_path="Death Animated",
+            required_gen_types={GenType.IMAGE, GenType.ANIM_DEATH})
+        self.generation_loop(
+            entries=self.non_bestiary_entries_death,
+            gen_function=self.gen_anim,
+            add_to_path="Death Animated/Not in bestiary",
+            required_gen_types={GenType.IMAGE, GenType.ANIM_DEATH})
+
+    def get_split_entries_death(self, entries_dict: dict[str, dict[str, Any]]) -> tuple[
+        list[dict[str, Any]], list[dict[str, Any]]]:
+        bestiary_entries = []
+        bestiary_k_ids = set()
+
+        def sprite_to_death_sprite(s: str) -> str:
+            s = s.replace(".png", "")
+            return _UNDERSCORE_I_DIGITS.sub("_0", s)
+
+        for key_id, entry in entries_dict.items():
+            if not entry.get("bInclude"):
+                continue
+
+            b_variants = {key_id}.union(entry.get("bVariants", []))
+            bestiary_k_ids.update(b_variants)
+
+            frame_names: set[tuple[str, str]] = set()
+            for variant_k_id in b_variants:
+                variant_entry = entries_dict.get(variant_k_id)
+                if variant_entry is None:
+                    continue
+                frame_names.update(zip(
+                    itertools.repeat(variant_entry[self.key_main_texture_name]),
+                    variant_entry[self.key_sprite_name]
+                ))
+
+            for idx, (texture_name, sprite_name) in enumerate(frame_names):
+                postfix = '' if idx < 1 else f'-{idx + 1}'
+                b_name = f"{entry[self.key_entry_name]}{postfix}"
+
+                entry_sprite = entry.copy()
+                entry_sprite.update({
+                    self.key_entry_name: b_name,
+                    self.key_main_texture_name: texture_name,
+                    self.key_sprite_name: sprite_to_death_sprite(sprite_name),
+                    self.key_frame_rate_name: self.death_anim_frame_rate,
+                    SAVE_POSTFIX: f' (death)',
+                })
+                bestiary_entries.append(entry_sprite)
+
+        non_bestiary_entries = []
+        for key_id, entry in entries_dict.items():
+            if key_id in bestiary_k_ids:
+                continue
+
+            for sprite_name in entry["frameNames"]:
+                entry_sprite = entry.copy()
+                entry_sprite.update({
+                    self.key_sprite_name: sprite_to_death_sprite(sprite_name),
+                    self.key_frame_rate_name: self.death_anim_frame_rate,
+                    SAVE_POSTFIX: f' (death)',
+                })
+                non_bestiary_entries.append(entry_sprite)
+
+        return bestiary_entries, non_bestiary_entries
+
+    def get_sprite_entries(self, entries_death: list[dict[str, Any]]):
+        sprite_entries = []
+
+        for entry in entries_death:
+            sprite_entry = entry.copy()
+            del sprite_entry[self.key_frame_rate_name]
+            del sprite_entry[SAVE_POSTFIX]
+
+            sprite_name = sprite_entry[self.key_sprite_name].replace(".png", "")
+            sprite_entry[self.key_sprite_name] = _UNDERSCORE_DIGITS.sub("_i01", sprite_name)
+            sprite_entries.append(sprite_entry)
+
+        return sprite_entries
 
 
 class StageImageGenerator(ListBaseImageGenerator):
@@ -1148,11 +1273,10 @@ class StageImageGenerator(ListBaseImageGenerator):
             return None
 
         image_data = out_image_data.sprite_data
-        eng_name = out_image_data.name
 
         stage_image = resize_image(image_data.sprite, 4)
 
-        text = eng_name.strip()
+        text = out_image_data.name.name.strip()
 
         image_text = image_functions.get_wrapped_text(
             text,
@@ -1177,8 +1301,7 @@ class StageImageGenerator(ListBaseImageGenerator):
 
         return ImageEntryToSave(
             stage_image,
-            eng_name,
-            lambda x: f"{self.save_image_prefix}-{self.get_save_name(x)}.png"
+            out_image_data.name.w(prefix=self.get_save_image_postfix(entry)),
         )
 
 
@@ -1188,16 +1311,20 @@ class AdventureStageImageGenerator(StageImageGenerator):
     stage_set: DataFile
     stage_to_stage_set: dict[str, str]
 
-    def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE, data_type: DataType,
-                 requested_gen_types: dict[GenType, int | bool]):
-        self.stage_set: DataFile | None = DataHandler.get_data(dlc_type, DataType.ADVENTURE_STAGE_SET)
+    def _set_entries(self):
+        assert self.dlc_type is not None
+
+        self.stage_set: DataFile | None = DataHandler.get_data(self.dlc_type, DataType.ADVENTURE_STAGE_SET)
+
+        assert self.stage_set is not None
+
         self.stage_to_stage_set = {
             stage: stage_set
             for stage_set, stages in self.stage_set.data().items()
             for stage in stages
         }
 
-        super().__init__(dlc_type, requested_gen_types)
+        super()._set_entries()
 
     def get_unit(self, key_id: str, entry: list[dict[str, Any]]) -> dict[str, Any]:
         entry = super().get_unit(key_id, entry)

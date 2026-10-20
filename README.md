@@ -1,6 +1,6 @@
 * [Game Files](https://github.com/orgs/SurvivatonsAndMore/repositories)
 
-# Unpacker (v0.20.0) - Data manager and Image generator
+# Unpacker (v0.21.0) - Data manager and Image generator
 
 Run [unpacker.py](unpacker.py) with [run.bat](run.bat). It can unpack images, get language strings and split them to
 different files and languages, unpack images based on data files and make them with unified names, making (almost
@@ -37,13 +37,12 @@ Using [AssetRipper](https://github.com/AssetRipper/AssetRipper) (v2.0.0+)
 
 ### Config
 
-| Entry                  | Description                                                                                                                                         |
-|------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| STEAM_'*game*'         | Path to folder with Steam game.<br/>Used by AssetRipper as _readonly_.                                                                              |
-| ASSETS_'*game*'        | Path to folder with ripped assets.<br/>Used by AssetRipper as _writable_. (removes **EVERYTHING** when ripping)<br/>Used by Unpacker as _readable_. |
-| DATA_'*game*'          | Path to folder for processed and dumped data by Unpacker.<br/>Used by Unpacker as _writable_.                                                       |
-| AS_RIPPER              | Path to folder with AssetRipper.<br/>Used by AssetRipper as _writable_ and _readable_.<br/>(Writes needed settings file for Ripper. Runs Ripper)    |
-
+| Entry           | Description                                                                                                                                         |
+|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| STEAM_'*game*'  | Path to folder with Steam game.<br/>Used by AssetRipper as _readonly_.                                                                              |
+| ASSETS_'*game*' | Path to folder with ripped assets.<br/>Used by AssetRipper as _writable_. (removes **EVERYTHING** when ripping)<br/>Used by Unpacker as _readable_. |
+| DATA_'*game*'   | Path to folder for processed and dumped data by Unpacker.<br/>Used by Unpacker as _writable_.                                                       |
+| AS_RIPPER       | Path to folder with AssetRipper.<br/>Used by AssetRipper as _writable_ and _readable_.<br/>(Writes needed settings file for Ripper. Runs Ripper)    |
 
 ### Functions
 
@@ -59,6 +58,7 @@ Using [AssetRipper](https://github.com/AssetRipper/AssetRipper) (v2.0.0+)
 | ... from any image                      | For corresponding action opens file selector.<br/>(Requires config _DATA_VS_)                                                                                                           |
 
 #### Metadata Functions
+
 * Requires _ASSETS_ and _DATA_ configs for respective game.
 
 | Button / Function / Feature      | Action                                                                                                                                                                                                                                                    |
@@ -85,4 +85,3 @@ Using [AssetRipper](https://github.com/AssetRipper/AssetRipper) (v2.0.0+)
 
 * Keep support for new content updates and DLC.
 * Add VC image generator.
-* Rewrite Image gen to better pipeline.

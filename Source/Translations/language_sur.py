@@ -37,20 +37,37 @@ class LangTypeSur(Enum):
     XBOX_ACH = "Xbox Achievements"
 
     # WHRS
-    ACHIEVEMENT2 = "achivementLang" # typo
     PS_ACH = "PlaystationAchievements"
     STATUS = "statusLang"
-    STATUS2 = "statusLAng" # typo
     PAINT_POT = "paintPotLang"
     DAMAGE = "damageLang"
     DIALOGUE = "dialogue"
-
 
     NONE = None
 
     @classmethod
     def get_all_types(cls) -> set["LangTypeSur"]:
         return {*cls}.difference({cls.NONE})
+
+    @staticmethod
+    def migrate_type(t: str):
+        for _type_from, _type_to in MIGRATE_TYPES.items():
+            if _type_from == t:
+                return _type_to
+        return t
+
+    @staticmethod
+    def migrate_types_from_text(text: str):
+        for _type_from, _type_to in MIGRATE_TYPES.items():
+            text = text.replace(_type_from, _type_to)
+        return text
+
+
+MIGRATE_TYPES = {
+    # WHRS
+    "achivementLang": LangTypeSur.ACHIEVEMENT.value,  # typo
+    "statusLAng": LangTypeSur.STATUS.value,  # typo
+}
 
 
 def get_lang_value(data: dict, *keys) -> Any | None:
@@ -132,7 +149,8 @@ class LangHandler(Objectless):
         assert i2lang
 
         with open(i2lang, "r", encoding="utf-8") as f:
-            cls._full_file = LangFile(COMPOUND_DATA, raw_text=f.read())
+            raw_text = LangTypeSur.migrate_types_from_text(f.read())
+        cls._full_file = LangFile(COMPOUND_DATA, raw_text=raw_text)
 
         print(f"Loaded I2Languages {timeit!r}")
 
@@ -151,6 +169,7 @@ class LangHandler(Objectless):
 
         for i, lang_entry in enumerate(full_data):
             lang_type_str, *full_key = lang_entry["Term"].replace("{", "").replace("}", "/").split("/")
+            lang_type_str = LangTypeSur.migrate_type(lang_type_str)
             lang_type = LangTypeSur(lang_type_str) if lang_type_str in LangTypeSur else LangTypeSur.NONE
 
             if lang_type == LangTypeSur.NONE:
