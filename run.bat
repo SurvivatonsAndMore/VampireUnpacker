@@ -9,4 +9,4 @@ if exist %venv_root% (
     echo Not found venv [%venv_root%]
 )
 python ./req_test.py
-python ./unpacker.py new
+python ./unpacker.py

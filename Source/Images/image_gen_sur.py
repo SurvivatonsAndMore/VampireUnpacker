@@ -228,13 +228,13 @@ class BaseImageGenerator:
     save_icon_prefix = "Icon"
     save_anim_prefix = "Animated"
 
-    key_main_texture_name = None
+    key_texture_name = None
     key_sprite_name = None
     key_frame_name = None
     key_entry_name = "name"
     key_frame_rate_name = None
 
-    default_main_texture_name = None
+    default_texture_name = None
     default_frame_name = None
 
     _is_initialized = True
@@ -306,7 +306,7 @@ class BaseImageGenerator:
 
             out_entry = gen_function(entry)
             if out_entry is None:
-                print(f"{add_to_path or "Image"}: {entry.get(KEY_ID)} skipped generation")
+                print(f"Skipped generation: {entry.get(KEY_ID)} [{add_to_path or "Image"}]")
                 continue
             else:
                 out_entry.save_entry(self.save_path, entry, self.scale, add_to_path=add_to_path)
@@ -363,7 +363,11 @@ class BaseImageGenerator:
 
     def get_save_image_postfix(self, entry):
         postfix = entry.get(SAVE_POSTFIX)
-        return '' if postfix is None else postfix
+        if postfix is None:
+            return ''
+        if isinstance(postfix, str):
+            return postfix
+        return ''.join(postfix)
 
     def get_unit(self, key_id: str, entry: dict[str, Any] | list[dict[str, Any]]) -> dict[str, Any]:
         assert isinstance(entry, dict)
@@ -392,12 +396,12 @@ class BaseImageGenerator:
 
     def get_textures_set(self, entries: list[dict[str, Any]] | None = None) -> set[str | None]:
         entries = entries or self.entries
-        textures_set = {entry.get(self.key_main_texture_name) for entry in entries}
+        textures_set = {entry.get(self.key_texture_name) for entry in entries}
         textures_set.add(UI)
         return textures_set
 
     def gen_image(self, entry: dict[str, Any]) -> SpriteEntryToSave | None:
-        main_texture = normalize_str(entry.get(self.key_main_texture_name) or self.default_main_texture_name)
+        main_texture = normalize_str(entry.get(self.key_texture_name) or self.default_texture_name)
         sprite_texture = normalize_str(entry[self.key_sprite_name])
 
         texture_meta_data = self.meta_data.get(main_texture)
@@ -450,7 +454,7 @@ class BaseImageGenerator:
         )
 
     def gen_anim(self, entry: dict[str, Any]) -> AnimationEntryToSave | None:
-        main_texture = normalize_str(entry.get(self.key_main_texture_name) or self.default_main_texture_name)
+        main_texture = normalize_str(entry.get(self.key_texture_name) or self.default_texture_name)
         sprite_texture = normalize_str(entry[self.key_sprite_name])
 
         texture_meta_data = self.meta_data.get(main_texture)
@@ -495,7 +499,7 @@ class ItemImageGenerator(BaseImageGenerator):
     save_image_prefix = "Sprite"
     save_icon_prefix = "Icon"
 
-    key_main_texture_name = "texture"
+    key_texture_name = "texture"
     key_sprite_name = "frameName"
     key_frame_name = "collectionFrame"
 
@@ -519,7 +523,7 @@ class ArcanaImageGenerator(BaseImageGenerator):
     save_image_prefix = "Sprite"
     save_icon_prefix = "Icon"
 
-    key_main_texture_name = "texture"
+    key_texture_name = "texture"
     key_sprite_name = "frameName"
     key_frame_name = "collectionFrame"
 
@@ -547,8 +551,8 @@ class ArcanaImageGenerator(BaseImageGenerator):
     def get_unit(self, key_id: str, entry: dict[str, Any]) -> dict[str, Any]:
         entry = super().get_unit(key_id, entry)
         entry.update({
-            self.key_main_texture_name: self.main_texture_name,
-            self.key_secondary_texture_name: entry.get(self.key_main_texture_name),
+            self.key_texture_name: self.main_texture_name,
+            self.key_secondary_texture_name: entry.get(self.key_texture_name),
         })
         return entry
 
@@ -655,7 +659,7 @@ class PropsImageGenerator(BaseImageGenerator):
     save_image_prefix = "Sprite"
     save_icon_prefix = "Icon"
 
-    key_main_texture_name = "textureName"
+    key_texture_name = "textureName"
     key_sprite_name = "frameName"
     key_frame_name = None
 
@@ -680,7 +684,7 @@ class AdvMerchantsGenerator(BaseImageGenerator):
     save_image_prefix = "Sprite"
     save_icon_prefix = "Icon"
 
-    key_main_texture_name = "staticSpriteTexture"
+    key_texture_name = "staticSpriteTexture"
     key_sprite_name = "staticSprite"
     key_frame_name = None
     key_entry_name = "charName"
@@ -702,7 +706,7 @@ class AlbumCoversGenerator(BaseImageGenerator):
 
     save_image_prefix = "Album"
 
-    key_main_texture_name = "icon"
+    key_texture_name = "icon"
     key_sprite_name = "icon"
     key_entry_name = "title"
 
@@ -717,12 +721,12 @@ class MusicIconsGenerator(BaseImageGenerator):
 
     save_image_prefix = "Music"
 
-    key_main_texture_name = None
+    key_texture_name = None
     key_sprite_name = "icon"
     key_frame_name = None
     key_entry_name = "title"
 
-    default_main_texture_name = UI
+    default_texture_name = UI
 
     def get_unit(self, key_id: str, entry: dict[str, Any]) -> dict[str, Any]:
         entry = super().get_unit(key_id, entry)
@@ -750,7 +754,7 @@ class CpuGenerator(BaseImageGenerator):
 
     save_image_prefix = "Cpu"
 
-    key_main_texture_name = "AIIconTexture"
+    key_texture_name = "AIIconTexture"
     key_sprite_name = "AIIconSprite"
     key_entry_name = "name"
 
@@ -767,7 +771,7 @@ class WeaponImageGenerator(ListBaseImageGenerator):
     data_type: DataType = DataType.WEAPON
     lang_type: LangTypeSur = LangTypeSur.WEAPON
 
-    key_main_texture_name = "texture"
+    key_texture_name = "texture"
     key_sprite_name = "frameName"
     key_frame_name = "collectionFrame"
 
@@ -785,7 +789,7 @@ class PowerUpImageGenerator(ListBaseImageGenerator):
     save_image_prefix = "Sprite"
     save_icon_prefix = "PowerUp"
 
-    key_main_texture_name = "texture"
+    key_texture_name = "texture"
     key_sprite_name = "frameName"
 
     default_frame_name = "frameD"
@@ -806,7 +810,7 @@ class CharacterImageGenerator(ListBaseImageGenerator):
     save_image_prefix = "Sprite"
     save_icon_prefix = "Select"
 
-    key_main_texture_name = "textureName"
+    key_texture_name = "textureName"
     key_sprite_name = "spriteName"
     key_frame_name = None
     key_entry_name = FULL_CHARACTER_NAME
@@ -985,7 +989,7 @@ class CharacterImageGenerator(ListBaseImageGenerator):
                 continue
 
             select_entry.update({
-                self.key_main_texture_name: select_entry.get(self.key_secondary_texture_name),
+                self.key_texture_name: select_entry.get(self.key_secondary_texture_name),
                 self.key_sprite_name: select_entry.get(self.key_secondary_sprite_name),
             })
 
@@ -1126,7 +1130,7 @@ class EnemyImageGenerator(ListBaseImageGenerator):
 
     save_image_prefix = "Sprite"
 
-    key_main_texture_name = "textureName"
+    key_texture_name = "textureName"
     key_sprite_name = "frameNames"
     key_frame_name = None
     key_entry_name = "bName"
@@ -1194,21 +1198,19 @@ class EnemyImageGenerator(ListBaseImageGenerator):
                 if variant_entry is None:
                     continue
                 frame_names.update(zip(
-                    itertools.repeat(variant_entry[self.key_main_texture_name]),
+                    itertools.repeat(variant_entry[self.key_texture_name]),
                     variant_entry[self.key_sprite_name]
                 ))
 
             for idx, (texture_name, sprite_name) in enumerate(frame_names):
                 postfix = '' if idx < 1 else f'-{idx + 1}'
-                b_name = f"{entry[self.key_entry_name]}{postfix}"
 
                 entry_sprite = entry.copy()
                 entry_sprite.update({
-                    self.key_entry_name: b_name,
-                    self.key_main_texture_name: texture_name,
+                    self.key_texture_name: texture_name,
                     self.key_sprite_name: sprite_to_death_sprite(sprite_name),
                     self.key_frame_rate_name: self.death_anim_frame_rate,
-                    SAVE_POSTFIX: f' (death)',
+                    SAVE_POSTFIX: (postfix, ' (death)'),
                 })
                 bestiary_entries.append(entry_sprite)
 
@@ -1217,12 +1219,14 @@ class EnemyImageGenerator(ListBaseImageGenerator):
             if key_id in bestiary_k_ids:
                 continue
 
-            for sprite_name in entry["frameNames"]:
+            for idx, sprite_name in enumerate(entry["frameNames"]):
+                postfix = '' if idx < 1 else f'-{idx + 1}'
+
                 entry_sprite = entry.copy()
                 entry_sprite.update({
                     self.key_sprite_name: sprite_to_death_sprite(sprite_name),
                     self.key_frame_rate_name: self.death_anim_frame_rate,
-                    SAVE_POSTFIX: f' (death)',
+                    SAVE_POSTFIX: (postfix, ' (death)'),
                 })
                 non_bestiary_entries.append(entry_sprite)
 
@@ -1234,8 +1238,8 @@ class EnemyImageGenerator(ListBaseImageGenerator):
         for entry in entries_death:
             sprite_entry = entry.copy()
             del sprite_entry[self.key_frame_rate_name]
-            del sprite_entry[SAVE_POSTFIX]
 
+            sprite_entry[SAVE_POSTFIX] = sprite_entry[SAVE_POSTFIX][0]
             sprite_name = sprite_entry[self.key_sprite_name].replace(".png", "")
             sprite_entry[self.key_sprite_name] = _UNDERSCORE_DIGITS.sub("_i01", sprite_name)
             sprite_entries.append(sprite_entry)
@@ -1253,7 +1257,7 @@ class StageImageGenerator(ListBaseImageGenerator):
 
     save_image_prefix = "Stage"
 
-    key_main_texture_name = "uiTexture"
+    key_texture_name = "uiTexture"
     key_sprite_name = "uiFrame"
     key_frame_name = None
     key_entry_name = "stageName"
