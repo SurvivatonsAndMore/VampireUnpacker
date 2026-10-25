@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import dataclasses
+import itertools
 import os
 import re
 import sys
-import itertools
-import dataclasses
 from pathlib import Path
 from typing import Any, Callable
 
@@ -14,16 +14,15 @@ from PIL.Image import Image, open as image_open, new as image_new
 from Source.Config.config import DLC
 from Source.Data.data_sur import DataHandler, DataType, DataFile
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
-from Source.Images import image_gen_types, transparent_save
+from Source.Images import image_gen_types, image_functions
+from Source.Images.image_functions import make_image_black
+from Source.Images.image_functions import resize_image, get_adjusted_sprites_to_rect, get_rects_by_sprite_list
 from Source.Images.image_gen_types import GenType
 from Source.Translations import language_sur
 from Source.Translations.language_sur import LangHandler, LangTypeSur
 from Source.Translations.language_utils import Lang
-from Source.Utility import image_functions
 from Source.Utility.constants import to_source_path, IMAGES_FOLDER, COMPOUND_DATA_TYPE, GENERATED, \
     PROGRESS_BAR_FUNC_TYPE, COMPOUND_DATA, PROGRESS_BAR_FUNC_DEFAULT, DEFAULT_ANIMATION_FRAME_RATE
-from Source.Utility.image_functions import make_image_black
-from Source.Utility.image_functions import resize_image, get_adjusted_sprites_to_rect, get_rects_by_sprite_list
 from Source.Utility.sprite_data import SpriteData, AnimationData
 from Source.Utility.timer import Timeit
 from Source.Utility.utility import normalize_str
@@ -45,7 +44,7 @@ FULL_CHARACTER_NAME = "_full_character_name"
 DEFAULT = "DEFAULT"
 SAVE_POSTFIX = "_save_postfix"
 
-FONT_FILE_PATH = to_source_path(IMAGES_FOLDER) / "Courier.ttf"
+FONT_FILE_PATH = to_source_path(IMAGES_FOLDER) / "Components" / "Courier.ttf"
 
 _UNSAVABLE_CHARACTERS = re.compile(r'[<>:/|\\?*\"]')
 
@@ -157,7 +156,7 @@ class AnimationEntryToSave(EntryToSave):
 
         for i, is_save_type in enumerate(self.anim_save_types):
             if is_save_type:
-                ext, folder, func = transparent_save.SAVE_DATA[i]
+                ext, folder, func = image_functions.SAVE_DATA[i]
                 save_path = save_folder_path / folder
                 save_path.mkdir(parents=True, exist_ok=True)
                 func(sprites_list, duration, save_path / self.name.str_ext(ext))
@@ -246,11 +245,17 @@ class BaseImageGenerator:
             GenType.TEXT_STROKE_WIDTH: cls.default_text_stroke_width,
         }
 
-    def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE | None, requested_gens: dict[GenType, int | float | bool]):
+    def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE | None, requested_gens: dict[GenType, int | float | bool],
+                 progress: PROGRESS_BAR_FUNC_TYPE | None = None):
         self.dlc_type = dlc_type
         if dlc_type is None:
             self._is_initialized = False
             return
+
+        self.func_progress_bar_set_percent = PROGRESS_BAR_FUNC_DEFAULT if progress is None else progress
+
+        _total = 4
+        self.func_progress_bar_set_percent(0, _total)
 
         df: DataFile | None = DataHandler.get_data(dlc_type, self.data_type)
         if df is None:
@@ -258,28 +263,37 @@ class BaseImageGenerator:
             return
         self.data_file = df
 
+        self.func_progress_bar_set_percent(1, _total)
+
         self.lang_data: dict[str, Any] = dict()
         if ((lang_data_full := LangHandler.get_lang_file(self.lang_type))
                 and (lang_data := lang_data_full.get_lang(Lang.EN))):
             self.lang_data = lang_data
 
+        self.func_progress_bar_set_percent(2, _total)
+
         self.requested_gens = requested_gens
         self.scale = int(self.requested_gens[GenType.IMAGE])
         self._set_entries()
+
+        self.func_progress_bar_set_percent(3, _total)
 
         texture_set = self.get_textures_set()
         texture_set.discard(None)
         self.meta_data = MetaDataHandler.get_meta_dict_by_name_set_fullest(texture_set)
 
+        self.func_progress_bar_set_percent(4, _total)
         # print(self.meta_data)
 
-        for texture_name, meta_data in self.meta_data.items():
+        _total = len(self.meta_data)
+
+        for i, (texture_name, meta_data) in enumerate(self.meta_data.items()):
             meta_data.init_sprites()
             if image_gen_types.has_requested_anim(self.requested_gens):
                 meta_data.init_animations()
+            self.func_progress_bar_set_percent(i, _total)
 
         ###
-        self.func_progress_bar_set_percent = PROGRESS_BAR_FUNC_DEFAULT
         self.save_path = Path()
         self.selected_anim_types = None
 
@@ -328,15 +342,11 @@ class BaseImageGenerator:
                              add_to_path=self.save_anim_prefix,
                              required_gen_types={GenType.ANIM})
 
-    def start_generator(self, selected_anim_types: list[bool] | None = None,
-                        func_progress_bar_set_percent: PROGRESS_BAR_FUNC_TYPE | None = None) -> Path:
+    def start_generator(self, selected_anim_types: list[bool] | None = None) -> Path:
         self.selected_anim_types = selected_anim_types
 
         self.save_path = to_current_game_path(IMAGES_FOLDER) / GENERATED / self.data_type / str(self.dlc_type)
         self.save_path.mkdir(parents=True, exist_ok=True)
-
-        fpb = func_progress_bar_set_percent
-        self.func_progress_bar_set_percent = fpb if fpb is not None else PROGRESS_BAR_FUNC_DEFAULT
 
         print(f"Selected settings for {self.__class__.__name__}: {self.requested_gens}")
         print(f"Started generating images for '{str(self.dlc_type)}' - '{self.data_type}'")
@@ -824,15 +834,16 @@ class CharacterImageGenerator(ListBaseImageGenerator):
 
     _weapon_image_gen: WeaponImageGenerator = WeaponImageGenerator(None, {})
 
-    def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE, requested_gens: dict[GenType, int | bool]):
+    def __init__(self, dlc_type: DLC | COMPOUND_DATA_TYPE, requested_gens: dict[GenType, int | bool],
+                 progress: PROGRESS_BAR_FUNC_TYPE | None = None):
         if not CharacterImageGenerator._weapon_image_gen._is_initialized:
             CharacterImageGenerator._weapon_image_gen = WeaponImageGenerator(COMPOUND_DATA,
                                                                              {GenType.IMAGE: 1})
 
-        super().__init__(dlc_type, requested_gens)
+        super().__init__(dlc_type, requested_gens, progress)
 
         if requested_gens.get(GenType.IMAGE_FRAME):
-            self.frame_image = image_open(to_source_path(IMAGES_FOLDER) / self.default_frame_name)
+            self.frame_image = image_open(to_source_path(IMAGES_FOLDER) / "Components" / self.default_frame_name)
 
     def _set_entries(self):
         super()._set_entries()

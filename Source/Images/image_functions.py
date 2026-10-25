@@ -1,6 +1,7 @@
+import functools
 import re
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Callable
 
 from PIL import ImageOps, ImageText, ImageFont, Image as PILImage
 from PIL.Image import Resampling, Transpose, Image
@@ -46,7 +47,9 @@ def apply_simple_affine_transform(image: Image, matrix: tuple[int, int, int, int
 
     return image
 
+
 _TRAILING_DIGITS = re.compile(r"\d+$")
+
 
 def split_name_count(name: str) -> tuple[str, int]:
     name = str(name)
@@ -170,13 +173,53 @@ def get_wrapped_text(
 
     image_text.wrap(text_width, text_height, scaling=("shrink", min_size))
 
-    # bug workaround until fixed https://github.com/python-pillow/Pillow/pull/10025
-    if image_text.font.size == max_size:
-        wrap = ImageText._Wrap(image_text, text_width, text_height, image_text.font)
-        image_text.text = "\n".join(wrap.lines)
-
     return image_text
 
+
+def apply_alpha_threshold(image: Image, threshold: int = 0) -> Image:
+    if threshold <= 0:
+        return image
+
+    img = image.convert('RGBA')
+
+    alpha = img.getchannel('A')
+    new_alpha = alpha.point(lambda a: a if a >= threshold else 0)
+    img.putalpha(new_alpha)
+
+    return img
+
+
+def save_anim(images: list[Image], durations: int | list[int], save_file: Path, *,
+              save_format: str, alpha_threshold: int = 0, disposal: int = 2):
+    images = [apply_alpha_threshold(im, alpha_threshold) for im in images]
+
+    images[0].save(
+        save_file,
+        format=save_format,
+        save_all=True,
+        optimize=False,
+        append_images=images[1:],
+        duration=durations,
+        disposal=disposal,
+        loop=0,
+    )
+
+
+SAVE_DATA: list[tuple[str, str, Callable[[list[Image], int | list[int], Path], None]]] = [
+    (".gif", "GIF_a50", functools.partial(save_anim, save_format='GIF', alpha_threshold=50)),
+    (".gif", "GIF", functools.partial(save_anim, save_format='GIF')),
+    (".webp", "WEBP", functools.partial(save_anim, save_format='WEBP')),
+    (".png", "AnimPNG", functools.partial(save_anim, save_format='PNG', disposal=1)),
+    (".avif", "AVIF", functools.partial(save_anim, save_format='AVIF')),
+]
+
+ANIM_SAVE_TYPES: list[str] = [
+    "GIF|only with pixels with alpha >=50",
+    "GIF",
+    "WEBP",
+    "AnimPNG",
+    "AVIF",
+]
 
 if __name__ == "__main__":
     pass

@@ -1,6 +1,11 @@
+import multiprocessing
+
 from Source.UI.ui_tkinter import UITkinter
 
-if __name__ == '__main__':
+def run_app():
     app = UITkinter()
     app.mainloop()
-    
+
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+    run_app()

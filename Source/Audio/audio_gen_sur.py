@@ -1,18 +1,23 @@
+from __future__ import annotations
+
+import functools
 import shutil
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Literal, Any
 
-from pydub import AudioSegment
+import mutagen
+import numpy as np
+import soundfile as sf
 
 import Source.Data.data_sur as data_module
 import Source.Translations.language_sur as language_vs
 from Source.Config.config import DLC
 from Source.Data.data_sur import DataType
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
-from Source.Translations.language_utils import Lang
 from Source.Translations.language_sur import LangTypeSur
+from Source.Translations.language_utils import Lang
 from Source.Utility.constants import GENERATED, COMPOUND_DATA, AUDIO_FOLDER, COMPOUND_DATA_TYPE, PROGRESS_BAR_FUNC_TYPE, \
     PROGRESS_BAR_FUNC_DEFAULT
 from Source.Utility.multirun import map_multiprocess, starmap_multiprocess, \
@@ -20,6 +25,11 @@ from Source.Utility.multirun import map_multiprocess, starmap_multiprocess, \
 from Source.Utility.timer import Timeit
 from Source.Utility.unity_parser import UnityDoc
 from Source.Utility.utility import normalize_str
+
+ARTIST = "artist"
+ALBUM = "album"
+SOURCE = "comment"
+TITLE = "title"
 
 
 class AudioSaveType(Enum):
@@ -72,15 +82,35 @@ def _get_audio_clips_paths() -> set[Path]:
     return set(map(lambda x: x.with_suffix(""), dict(audio_clips).values()))
 
 
-def _get_audio_clip(path: Path) -> tuple[Path, AudioSegment]:
-    return path, AudioSegment.from_file(path, format=path.suffix.replace(".", ""))
+def _export_soundfile(data: np.ndarray, samplerate: int, out_path: Path, ext: str, tags: dict | None = None):
+    chunk_size = 8192
+    try:
+        with sf.SoundFile(
+                out_path, mode='w', samplerate=samplerate,
+                channels=data.shape[1] if data.ndim > 1 else 1,
+                format=ext.upper()
+        ) as f:
+            for i in range(0, len(data), chunk_size):
+                f.write(data[i:i + chunk_size])
+        #     sf.write(out_path, data.astype(np.float32), self.samplerate, format=ext.upper())
+    except Exception as e:
+        print(f"Warning: Could not write {out_path.name} as {ext}. Error: {e}")
+        return
+
+    if tags:
+        try:
+            audio = mutagen.File(out_path, easy=True)
+            if audio is not None:
+                audio.update(tags)
+                audio.save()
+        except Exception as e:
+            print(f"Warning: Could not write tags to {out_path.name}: {e}")
 
 
 @dataclass
 class MusicTrack:
-    audio: AudioSegment | None
     audio_clips_paths: list[Path]
-    tags: dict[Literal["artist", "album", "title", "source"], str]
+    tags: dict[Literal["artist", "album", "title", "comment"], str]
     code_name: str
     ext: str
     content_group: str
@@ -89,11 +119,30 @@ class MusicTrack:
     def get_code_name_ext(self):
         return f"{self.code_name}.{self.ext}"
 
-    def init_audio(self):
+    def is_valid(self):
+        return len(self.audio_clips_paths) and all(clip.exists() for clip in self.audio_clips_paths)
+
+    def save_track(self: MusicTrack, save_path: Path) -> None:
         if not self.ext:
             return
-        clips: list[tuple[Path, AudioSegment]] = map_multithread(_get_audio_clip, self.audio_clips_paths)
-        self.audio = sum(dict(clips).values()) if clips else None
+
+        read_audio = functools.partial(sf.read, always_2d=True)
+        clip_datas: list[tuple[np.ndarray, int]] = map_multithread(read_audio, self.audio_clips_paths)
+        if not clip_datas:
+            return
+
+        samplerate = clip_datas[0][1]
+        if any(cd[1] != samplerate for cd in clip_datas):
+            print(f"{self} clip files does not have same samplerate. Skipping")
+            return
+
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+
+        full_data = np.concatenate([cd[0] for cd in clip_datas], axis=0)
+
+        _export_soundfile(full_data, samplerate, save_path, self.ext, tags=self.tags)
+
+        return
 
 
 def _get_music_track(audio_clips: dict[str, Path], music_data: dict[str, Any], playlist_data) -> MusicTrack:
@@ -102,10 +151,10 @@ def _get_music_track(audio_clips: dict[str, Path], music_data: dict[str, Any], p
     cur_data = music_data.get(code_name) or {}
 
     tags = {
-        "artist": cur_data.get("author"),
-        "album": cur_data.get("source"),
-        "source": cur_data.get("source"),
-        "title": cur_data.get("title")
+        ARTIST: cur_data.get("author"),
+        ALBUM: cur_data.get("source"),
+        SOURCE: cur_data.get("source"),
+        TITLE: cur_data.get("title")
     }
     if None in tags.values():
         tags = {}
@@ -116,7 +165,7 @@ def _get_music_track(audio_clips: dict[str, Path], music_data: dict[str, Any], p
     found_songs = list(filter(lambda k_v: song_name_main + "_" in normalize_str(k_v[0])
                                           or song_name_main == normalize_str(k_v[0]), audio_clips.items()))
     if len(found_songs) > 1:
-        is_vs = "_vs_" in normalize_str(code_name) or " - Vampire Survivors" in tags.get("title", "")
+        is_vs = "_vs_" in normalize_str(code_name) or " - Vampire Survivors" in tags.get(TITLE, "")
         if is_vs:
             print(f"Found songs with duplicate names: {found_songs}. Separating them by their file sizes.")
 
@@ -136,6 +185,7 @@ def _get_music_track(audio_clips: dict[str, Path], music_data: dict[str, Any], p
         clip_data = audio_clips.get(song_name)
         if not clip_data:
             print(f"Music track not found by song ({song_name=} ;; {setting['songName']=})")
+            continue
         else:
             ext = clip_data.suffix.replace(".", "")
 
@@ -143,11 +193,7 @@ def _get_music_track(audio_clips: dict[str, Path], music_data: dict[str, Any], p
 
     content_group = cur_data and cur_data.get("contentGroup", "BASE_GAME") or "UNCATEGORIZED"
 
-    return MusicTrack(None, clips, tags, code_name, ext, content_group, has_same_name)
-
-
-def _save_track(music_track: MusicTrack, save_path: Path):
-    music_track.audio.export(save_path, music_track.ext, tags=music_track.tags)
+    return MusicTrack(clips, tags, code_name, ext, content_group, has_same_name)
 
 
 def gen_music_tracks(
@@ -207,7 +253,7 @@ def gen_music_tracks(
 
     total_len = len(music_playlists)
 
-    print(f"Generating {total_len} tacks")
+    print(f"Searching {total_len} tacks")
 
     args_gen_tracks = (
         (audio_clips, music_data, playlist_data)
@@ -216,27 +262,9 @@ def gen_music_tracks(
     timeit = Timeit()
 
     audio_tracks: list[MusicTrack] = starmap_multiprocess(_get_music_track, args_gen_tracks)
-    map_multithread(MusicTrack.init_audio, audio_tracks, max_workers=8)
-    audio_tracks = list(filter(lambda x: x.audio, audio_tracks))
+    audio_tracks = list(filter(MusicTrack.is_valid, audio_tracks))
 
-    total_len = len(audio_tracks)
-
-    print(f"Generated tacks {timeit!r}")
-
-    content_group_set = {track.content_group for track in audio_tracks}
-    for content_group in content_group_set:
-        for save_type in save_name_types:
-            sp = save_path.joinpath(str(save_type), content_group)
-            sp.mkdir(parents=True, exist_ok=True)
-
-            if save_type == AudioSaveType.TITLE_NAME:
-                sp.joinpath("prefix").mkdir(parents=True, exist_ok=True)
-
-            if save_type == AudioSaveType.RELATIVE_NAME:
-                for ld in datas.values():
-                    sp = save_path.joinpath(str(save_type), content_group, ld["type"])
-                    sp.mkdir(parents=True, exist_ok=True)
-                    sp.joinpath("prefix").mkdir(parents=True, exist_ok=True)
+    print(f"Found {len(audio_tracks)} tacks {timeit!r}")
 
     def path_dest(s_type: AudioSaveType, m_track: MusicTrack, *other):
         return save_path.joinpath(str(s_type), m_track.content_group, *other)
@@ -245,10 +273,14 @@ def gen_music_tracks(
     print("Saving tracks with code names")
 
     args_save_tracks = [
-        (music_tack, path_dest(AudioSaveType.CODE_NAME, music_tack) / music_tack.get_code_name_ext())
-        for music_tack in audio_tracks
+        (music_track, path_dest(AudioSaveType.CODE_NAME, music_track) / music_track.get_code_name_ext())
+        for music_track in audio_tracks
     ]
-    starmap_multithread(_save_track, args_save_tracks, max_workers=8)
+    starmap_multithread(MusicTrack.save_track, args_save_tracks, max_workers=8, progress=func_progress_bar_set_percent)
+
+    # for i, music_track in enumerate(audio_tracks):
+    #     _save_track(music_track, path_dest(AudioSaveType.CODE_NAME, music_track) / music_track.get_code_name_ext())
+    #     func_progress_bar_set_percent(i, len(audio_tracks))
 
     print(f"Saved tracks with code names {timeit!r}")
 
@@ -267,9 +299,9 @@ def gen_music_tracks(
 
         cur_data = music_data.get(code_name) or {}
 
-        if AudioSaveType.TITLE_NAME in save_name_types and (title := tags.get("title")):
+        if AudioSaveType.TITLE_NAME in save_name_types and (title := tags.get(TITLE)):
             title_add = ""
-            if (source := tags.get("source")) and ("Castlevania" in source):
+            if (source := tags.get(SOURCE)) and ("Castlevania" in source):
                 title_add = " (" + source.replace("Castlevania", "").strip() + ")"
 
             save_name = f"{title}{title_add}.{ext}"

@@ -8,9 +8,9 @@ from pip._internal.req.constructors import install_req_from_parsed_requirement
 from pip._internal.req.req_file import parse_requirements
 
 from Source.Config.config import Config, CfgKey
-from Source.Utility.utility import _find_main_py_file
+from Source.Utility.utility import _find_source_folder
 
-_REQUIREMENTS_PATH = _find_main_py_file().with_name("requirements.txt")
+_REQUIREMENTS_PATH = _find_source_folder().with_name("requirements.txt")
 
 
 def test_requirements():

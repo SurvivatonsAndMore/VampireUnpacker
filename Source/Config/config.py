@@ -12,7 +12,7 @@ from tkinter.filedialog import askdirectory
 from tkinter.messagebox import showerror, showinfo
 from typing import Final, Callable
 
-from Source.Utility.constants import CONFIG_FOLDER, ROOT_FOLDER
+from Source.Utility.constants import ROOT_FOLDER, PROGRAM_FOLDER
 from Source.Utility.special_classes import Objectless
 
 ASSETS = "Assets"
@@ -165,7 +165,7 @@ class DLC(Enum):
 class Config(Objectless):
     __data: dict[CfgKey, Path] = dict()
 
-    _CONFIG_FILE: Final[Path] = CONFIG_FOLDER / "Config.json"
+    _CONFIG_FILE: Final[Path] = PROGRAM_FOLDER / "Config.json"
 
     @classmethod
     def load(cls) -> None:

@@ -3,10 +3,10 @@ from pathlib import Path
 
 from Source.Config.config import Game
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
-from Source.Images import transparent_save
+from Source.Images import image_functions
+from Source.Images.image_functions import resize_image, get_anim_sprites_ready, resize_list_images
 from Source.Utility.constants import IMAGES_FOLDER, GENERATED, PROGRESS_BAR_FUNC_TYPE, DEFAULT_ANIMATION_FRAME_RATE, \
     PROGRESS_BAR_FUNC_DEFAULT
-from Source.Utility.image_functions import resize_image, get_anim_sprites_ready, resize_list_images
 from Source.Utility.popups import ErrorPopup, InfoPopup
 
 
@@ -94,7 +94,7 @@ def generate_animation_by_meta(
     if not total_len:
         raise InfoPopup("Info", f"Not found animations for {file}")
 
-    anim_types = transparent_save.ANIM_SAVE_TYPES
+    anim_types = image_functions.ANIM_SAVE_TYPES
 
     print(f"Generating {file} by meta")
 
@@ -118,7 +118,7 @@ def generate_animation_by_meta(
         sprites_list = get_anim_sprites_ready(anim)
         sprites_list = resize_list_images(sprites_list, scale_factor)
 
-        for ext, folder, func in itertools.compress(transparent_save.SAVE_DATA, selected_anim_types):
+        for ext, folder, func in itertools.compress(image_functions.SAVE_DATA, selected_anim_types):
             path = folder_save_path / folder
             path.mkdir(exist_ok=True)
             func(sprites_list, duration, path / f"{anim.name}{ext}")

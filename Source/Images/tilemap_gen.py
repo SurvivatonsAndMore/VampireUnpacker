@@ -7,7 +7,7 @@ from Source.Config.config import Config
 from Source.Data.meta_data import MetaData, MetaDataHandler, to_current_game_path
 from Source.Utility.constants import IMAGES_FOLDER, GENERATED, TILEMAPS, PROGRESS_BAR_FUNC_TYPE, \
     PROGRESS_BAR_FUNC_DEFAULT
-from Source.Utility.image_functions import apply_simple_affine_transform, crop_image_rect_left_bot
+from Source.Images.image_functions import apply_simple_affine_transform, crop_image_rect_left_bot
 from Source.Utility.multirun import starmap_multithread
 from Source.Utility.special_classes import Objectless
 from Source.Utility.sprite_data import SpriteData, SpriteRect

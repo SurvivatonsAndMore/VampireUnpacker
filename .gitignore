@@ -1,16 +1,19 @@
 /.idea
 **/__pycache__
 
+test*
+/dist
+/build
+
 */Generated*
 Config*.json
 !Translations/Generated
-
-test*
 
 *.meta
 *.env
 *.log
 *.prof
+*.spec
 
 /Audio
 /Config

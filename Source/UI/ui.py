@@ -6,15 +6,14 @@ from typing import Iterable
 from Source.Config.config import Config, DLC, CfgKey, Game
 from Source.Data import game_version, data_vc, data_sur
 from Source.Data.meta_data import MetaDataHandler, to_current_game_path
-from Source.Images import transparent_save, image_gen_sur, image_gen_types
+from Source.Images import image_gen_sur, image_gen_types, image_functions
 from Source.Images.image_gen_general import generate_images_by_meta, generate_animation_by_meta
 from Source.Images.image_gen_types import GenType
+from Source.Ripper import ripper
 from Source.Translations import language_vc, language_sur
-from Source.Utility import image_functions
 from Source.Utility.constants import to_source_path, IMAGES_FOLDER, GENERATED, COMPOUND_DATA_TYPE, COMPOUND_DATA, \
     DEFAULT_ANIMATION_FRAME_RATE, PREFAB_INSTANCE, GAME_OBJECT, TILEMAPS
 from Source.Utility.popups import ErrorPopup, BasePopup, InfoPopup, WarningPopup
-from Source.Ripper import ripper
 
 
 class UIBase:
@@ -239,7 +238,7 @@ class UIBase:
         if not frame_rate or frame_rate <= 0: return
 
         selected_anim_types = self.check_boxes(
-            transparent_save.ANIM_SAVE_TYPES,
+            image_functions.ANIM_SAVE_TYPES,
             label="Select animation extension to use.\n(GIF does not support partial transparency)",
             title="Select anim types")
 
@@ -417,15 +416,15 @@ class UIBase:
         selected_anim_types = None
         if image_gen_types.has_requested_anim(req_gens):
             selected_anim_types: list[bool] | None = self.check_boxes(
-                transparent_save.ANIM_SAVE_TYPES,
+                image_functions.ANIM_SAVE_TYPES,
                 label="Select animation extension to use.\n(GIF does not support partial transparency)",
                 title="Select anim types")
 
             if not selected_anim_types or not any(selected_anim_types):
                 return
 
-        gen = gen_class(selected_dlc, req_gens)
-        self._last_loaded_folder = gen.start_generator(selected_anim_types, self.progress_bar_set_percent)
+        gen = gen_class(selected_dlc, req_gens, progress=self.progress_bar_set_percent)
+        self._last_loaded_folder = gen.start_generator(selected_anim_types)
 
     def get_unified_audio_vs(self):
         from req_test import check_pydub

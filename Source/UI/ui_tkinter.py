@@ -29,6 +29,8 @@ class UITkinter(tk.Tk, UIBase):
     def __init__(self, width=600, height=400):
         sys.stdout = Logger(sys.stdout)
         sys.stderr = Logger(sys.stderr)
+
+        print(f"{ROOT_FOLDER = }")
         if IS_DEBUG: print(f"{IS_DEBUG = }\n")
 
         ###
@@ -81,12 +83,21 @@ class UITkinter(tk.Tk, UIBase):
             _progress_bar_label_below.update()
 
         self.__update_progress_bar = upd_pb
-        upd_pb(40, "ABOVE", "BELOW")
+        upd_pb(0, "WELCOME TO", "VAMPIRE UNPACKER")
         ###
 
+        ttk.Button(
+            self,
+            text="Open last loaded folder",
+            command=self.open_last_loaded_folder
+        ).grid(column=0, row=3)
+
         ###
-        _md_frame = ttk.Frame(self)
-        _md_frame.grid(column=0, row=3, pady=self._pady)
+        _config_frame = ttk.Frame(self)
+        _config_frame.grid(column=0, row=4, pady=self._pady)
+
+        _md_frame = ttk.Frame(_config_frame)
+        _md_frame.grid(column=0, row=0, columnspan=2)
 
         _metadata_label_string = tk.StringVar(name="md_s")
         _metadata_label = ttk.Label(_md_frame, textvariable=_metadata_label_string)
@@ -120,30 +131,19 @@ class UITkinter(tk.Tk, UIBase):
             text="Load Game Metadata",
             command=self.load_metadata,
         ).grid(column=0, row=1)
-
-        ###
-
-        ###
-        _config_frame = ttk.Frame(self)
-        _config_frame.grid(column=0, row=4, pady=self._pady)
+        #
 
         ttk.Button(
             _config_frame,
             text="Rip data automatically",
             command=self.rip_data
-        ).grid(column=0, row=0)
+        ).grid(column=0, row=1)
 
         ttk.Button(
             _config_frame,
             text="Change config",
             command=self.change_config
-        ).grid(column=1, row=0)
-
-        ttk.Button(
-            _config_frame,
-            text="Open last loaded folder",
-            command=self.open_last_loaded_folder
-        ).grid(column=0, row=1, columnspan=2)
+        ).grid(column=1, row=1)
         ###
 
         ###

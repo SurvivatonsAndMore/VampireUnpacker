@@ -1,4 +1,8 @@
-pillow==12.3.0
+pillow==13.0.0
 PyYAML==6.0.3
-pydub==0.25.1
 requests==2.34.2
+pyinstaller==6.22.3
+
+soundfile==0.14.0
+numpy==2.5.4
+mutagen==1.48.1

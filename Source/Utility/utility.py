@@ -81,7 +81,7 @@ def to_pascalcase(s):
     return _UNDERSCORES_OR_DASHES.sub(" ", s).title().replace(" ", "").replace("*", "")
 
 
-def _find_main_py_file(file_name: str = "unpacker.py") -> Path | None:
+def _find_source_folder(file_name: str = "Source") -> Path | None:
     this_folder = Path(__file__).parent
 
     for _ in range(4):

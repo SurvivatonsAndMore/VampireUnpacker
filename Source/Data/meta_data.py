@@ -11,7 +11,7 @@ from PIL.Image import Image
 from Source.Config.config import DLC, Config, Game
 from Source.Utility.constants import RESOURCES, TEXTURE_2D, TEXT_ASSET, GAME_OBJECT, PREFAB_INSTANCE, AUDIO_CLIP, \
     MONO_BEHAVIOUR, DATA_MANAGER_SETTINGS, BUNDLE_MANIFEST_DATA, MATERIAL, ROOT_FOLDER, VERSION_DATA
-from Source.Utility.image_functions import crop_image_rect_left_bot, split_name_count, get_rects_by_sprite_list
+from Source.Images.image_functions import crop_image_rect_left_bot, split_name_count, get_rects_by_sprite_list
 from Source.Utility.multirun import map_multiprocess, starmap_multiprocess, map_multithread
 from Source.Utility.special_classes import Objectless, Emitter
 from Source.Utility.sprite_data import SpriteData, AnimationData, SKIP_ANIM_NAMES_LIST
