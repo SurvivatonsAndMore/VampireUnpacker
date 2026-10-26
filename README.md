@@ -10,11 +10,12 @@ To start using unpacker, [download](https://github.com/SurvivatonsAndMore/Vampir
 
 Configure paths with _**Change config**_. [[Info](#config)]
 
-To get game files use [AssetRipper](https://github.com/AssetRipper/AssetRipper).
+Unpacker does not contain game files. To get game files use [AssetRipper](https://github.com/AssetRipper/AssetRipper).
 ([v2.0.0](https://github.com/AssetRipper/AssetRipper/releases/latest)+)
 
-* ! ***NOTE*** that ripping will **<u>REMOVE EVERYTHING</u>** in selected **<u>assets</u>** folders!
-* Enter path to folder with AssetRipper.exe and Steam folder for Game in config.
+* ! ***NOTE*** that ripping will **<u>REMOVE EVERYTHING</u>** in folders where data is extracted to! 
+(<u>ASSETS_'*game*'</u> folders)
+* Enter path to folder with AssetRipper.exe, Steam folder for Game and extracted assets folder for Game in config.
 * Press _**Rip data automatically**_ and select Games to rip.
 
 ### Config
