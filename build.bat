@@ -9,8 +9,17 @@ if exist %venv_root% (
     echo Not found venv [%venv_root%]
 )
 
-pyinstaller --onedir --windowed --name VampireUnpacker ^
-  --add-data "Source/Images/Components;Source/Images/Components" ^
-  --add-data "Source/Images/Show;Source/Images/Show" ^
-  --add-data "Source/Ripper/AssetRipper.Settings.json;Source/Ripper" ^
+pyinstaller --name VampireUnpacker ^
+  --windowed ^
+  --onedir ^
+  --optimize 2 ^
+  --icon "%CD%/Source/Images/Show/_Sprite-Atlas Gate.png" ^
+  --add-data "%CD%/Source/Images/Components;Source/Images/Components" ^
+  --add-data "%CD%/Source/Images/Show;Source/Images/Show" ^
+  --add-data "%CD%/Source/Ripper/AssetRipper.Settings.json;Source/Ripper" ^
+  --distpath "./build/dist" ^
+  --workpath "./build/build" ^
+  --specpath "./build" ^
   unpacker.py
+
+pause

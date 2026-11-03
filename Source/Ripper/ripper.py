@@ -6,7 +6,7 @@ from pathlib import Path
 
 import requests
 
-from req_test import version_to_str, get_ripper_version
+from Source.Utility.versions import get_ripper_version, version_to_str
 from Source.Config.config import CfgKey, Config, Game
 from Source.Utility.constants import RIPPER_FOLDER, to_source_path
 from Source.Utility.timer import Timeit

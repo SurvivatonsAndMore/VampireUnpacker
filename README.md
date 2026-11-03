@@ -1,6 +1,6 @@
 * [Game Files](https://github.com/orgs/SurvivatonsAndMore/repositories)
 
-# Vampire Unpacker (v1.0.0) - Data manager and Image generator
+# Vampire Unpacker (v1.0.1) - Data manager and Image generator
 
 Program can unpack images, get language strings and split them to different files and languages, unpack images based on
 data files and make them with unified names, making (almost correct) animations of characters and enemies.

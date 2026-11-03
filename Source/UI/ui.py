@@ -11,6 +11,7 @@ from Source.Images.image_gen_general import generate_images_by_meta, generate_an
 from Source.Images.image_gen_types import GenType
 from Source.Ripper import ripper
 from Source.Translations import language_vc, language_sur
+from Source.Utility.versions import get_ripper_version, version_to_str, RIPPER_VERSION_MINIMAL
 from Source.Utility.constants import to_source_path, IMAGES_FOLDER, GENERATED, COMPOUND_DATA_TYPE, COMPOUND_DATA, \
     DEFAULT_ANIMATION_FRAME_RATE, PREFAB_INSTANCE, GAME_OBJECT, TILEMAPS
 from Source.Utility.popups import ErrorPopup, BasePopup, InfoPopup, WarningPopup
@@ -82,10 +83,13 @@ class UIBase:
         match popup:
             case InfoPopup(t, m):
                 self.show_info(t, m)
+                print(t, m)
             case WarningPopup(t, m):
                 self.show_warning(t, m)
+                print(t, m)
             case ErrorPopup(t, m):
                 self.show_error(t, m)
+                print(t, m)
 
     def check_boxes[T](self, list_to_boxes: list[T], title="", label: str | list[str] = "", width: int = 300) -> \
             list[bool] | None:
@@ -132,8 +136,18 @@ class UIBase:
 
     def rip_data(self) -> None:
         if not Config[CfgKey.RIPPER]:
-            self.show_error("Error", "Not found path to AssetRipper")
+            self.show_error("Ripper Error", "Not found path to AssetRipper")
             return
+
+        ripper_version = get_ripper_version()
+        assert ripper_version is not None
+        if ripper_version < RIPPER_VERSION_MINIMAL:
+            self.show_warning(
+                "Ripper Warning",
+                f"AssetRipper version is lower [{version_to_str(ripper_version)}] than "
+                f"required [{version_to_str(RIPPER_VERSION_MINIMAL)}].\n"
+                "Unpacker may not work as expected with that data!"
+            )
 
         games_list = []
         for g in Game.get_all_types():
@@ -154,11 +168,11 @@ class UIBase:
 
         try:
             ripper.rip_files(games_set)
+            print("Finished ripping files")
+            MetaDataHandler.unload()
         except BasePopup as p:
             self.show_popup(p)
 
-        print("Finished ripping files")
-        MetaDataHandler.unload()
 
     def create_version_file(self):
         app_id = None
@@ -427,12 +441,6 @@ class UIBase:
         self._last_loaded_folder = gen.start_generator(selected_anim_types)
 
     def get_unified_audio_vs(self):
-        from req_test import check_pydub
-        if not check_pydub():
-            print("FFmpeg not found")
-            self.show_error("Error", "FFmpeg not found")
-            return
-
         import Source.Audio.audio_gen_sur as audio_gen
 
         save_types_list = audio_gen.AudioSaveType.get()

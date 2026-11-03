@@ -13,6 +13,7 @@ from Source.UI.boxes_tkinter import CheckBoxes, ButtonsBox, GeneratorDialog
 from Source.UI.ui import UIBase
 from Source.Utility.constants import IS_DEBUG, ROOT_FOLDER
 from Source.Utility.logger import Logger
+from Source.Utility.versions import version_to_str, UNPACKER_VERSION, get_ripper_version
 
 _registered_layouts: dict[Game, Callable] = {}
 
@@ -195,6 +196,10 @@ class UITkinter(tk.Tk, UIBase):
             f(self)
 
         MetaDataHandler.register(MetaDataHandler.Emit.AFTER_LOAD, set_main_frame)
+
+        corner = tk.Frame(self)
+        corner.place(relx=1, rely=1, anchor="se", x=-4, y=-2)
+        ttk.Label(corner, text=f"Unp: v{version_to_str(UNPACKER_VERSION)}", foreground="gray").pack(anchor="e")
         ###
 
     def clear_main_frame(self):
