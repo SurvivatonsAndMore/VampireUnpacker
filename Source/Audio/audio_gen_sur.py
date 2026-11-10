@@ -196,6 +196,11 @@ def _get_music_track(audio_clips: dict[str, Path], music_data: dict[str, Any], p
     return MusicTrack(clips, tags, code_name, ext, content_group, has_same_name)
 
 
+def shutil_copy(src: Path, dst: Path):
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    return shutil.copy(src, dst)
+
+
 def gen_music_tracks(
         music_dlc: DLC | COMPOUND_DATA_TYPE,
         save_name_types: set[AudioSaveType],
@@ -306,8 +311,8 @@ def gen_music_tracks(
 
             save_name = f"{title}{title_add}.{ext}"
 
-            shutil.copy(code_name_path, path_dest(AudioSaveType.TITLE_NAME, music_track, save_name))
-            shutil.copy(code_name_path,
+            shutil_copy(code_name_path, path_dest(AudioSaveType.TITLE_NAME, music_track, save_name))
+            shutil_copy(code_name_path,
                         path_dest(AudioSaveType.TITLE_NAME, music_track, "prefix", "Audio-" + save_name))
 
         if AudioSaveType.RELATIVE_NAME in save_name_types:
@@ -350,8 +355,8 @@ def gen_music_tracks(
 
                 already_generated.update({save_name: True})
 
-                shutil.copy(code_name_path, path_dest(AudioSaveType.RELATIVE_NAME, music_track, cur_type, save_name))
-                shutil.copy(code_name_path, path_dest(AudioSaveType.RELATIVE_NAME, music_track, cur_type, "prefix",
+                shutil_copy(code_name_path, path_dest(AudioSaveType.RELATIVE_NAME, music_track, cur_type, save_name))
+                shutil_copy(code_name_path, path_dest(AudioSaveType.RELATIVE_NAME, music_track, cur_type, "prefix",
                                                       "Audio-" + save_name))
 
         print(f"\r{kk + 1}", end="")

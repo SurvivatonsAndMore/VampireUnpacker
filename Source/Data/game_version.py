@@ -123,7 +123,7 @@ def load_version_file(app_manifest: dict[str, str]):
             for dlc, name, version in dlc_list:
                 text += f"{name} - {version}\n"
             text = f"{loaded_game.get_default_dlc().value.full_name} - {game_version}\n" + text
-            text += f"{build_time} [{build_num}{'R' if loaded_game == Game.VS else ''}]\n"
+            text += f"{build_time} [{build_num}R]\n"
 
     manifest = app_manifest
 

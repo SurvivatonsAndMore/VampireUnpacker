@@ -1,6 +1,6 @@
 * [Game Files](https://github.com/orgs/SurvivatonsAndMore/repositories)
 
-# Vampire Unpacker (v1.0.1) - Data manager and Image generator
+# Vampire Unpacker (v1.0.2) - Data manager and Image generator
 
 Program can unpack images, get language strings and split them to different files and languages, unpack images based on
 data files and make them with unified names, making (almost correct) animations of characters and enemies.
@@ -13,8 +13,8 @@ Configure paths with _**Change config**_. [[Info](#config)]
 Unpacker does not contain game files. To get game files use [AssetRipper](https://github.com/AssetRipper/AssetRipper).
 ([v2.0.0](https://github.com/AssetRipper/AssetRipper/releases/latest)+)
 
-* ! ***NOTE*** that ripping will **<u>REMOVE EVERYTHING</u>** in folders where data is extracted to! 
-(<u>ASSETS_'*game*'</u> folders)
+* ! ***NOTE*** that ripping will **<u>REMOVE EVERYTHING</u>** in folders where data is extracted to!
+  (<u>ASSETS_'*game*'</u> folders)
 * Enter path to folder with AssetRipper.exe, Steam folder for Game and extracted assets folder for Game in config.
 * Press _**Rip data automatically**_ and select Games to rip.
 
@@ -60,6 +60,10 @@ Unpacker does not contain game files. To get game files use [AssetRipper](https:
 
 * Keep support for new content updates and DLC.
 * Add VC image generator.
+
+
+* Known issues:
+    * Some WHRS image gen not working properly.
 
 ### Running from source
 

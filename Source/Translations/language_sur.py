@@ -63,7 +63,7 @@ class LangTypeSur(Enum):
         return text
 
 
-MIGRATE_TYPES = {
+MIGRATE_TYPES: dict[str, str] = {
     # WHRS
     "achivementLang": LangTypeSur.ACHIEVEMENT.value,  # typo
     "statusLAng": LangTypeSur.STATUS.value,  # typo

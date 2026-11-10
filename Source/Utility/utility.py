@@ -52,6 +52,20 @@ def clean_commas_json(string: str) -> str:
     return string
 
 
+_UNQUOTED_PROPERTY = re.compile(r"([{,]\s*?)([A-Za-z_$][A-Za-z0-9_$]*)(?=\s*:)")
+
+
+def fix_unquoted_property_json(string: str) -> str:
+    string = _UNQUOTED_PROPERTY.sub(r'\1"\2"', string)
+    return string
+
+
+def clean_all_json(string: str) -> str:
+    string = clean_comments_json(string)
+    string = fix_unquoted_property_json(string)
+    return clean_commas_json(string)
+
+
 _ACF_VALUE_COLON = re.compile(r"\"([ \t\r\n]+){")
 _ACF_OBJECT_COLON = re.compile(r"\"\t\t\"")
 _ACF_VALUE_COMMA = re.compile(r"\"(\n[ \t\r\n]+)\"")
@@ -71,11 +85,8 @@ def acf_to_json(string: str) -> str:
     return string
 
 
-def clean_all_json(string: str) -> str:
-    string = clean_comments_json(string)
-    return clean_commas_json(string)
-
 _UNDERSCORES_OR_DASHES = re.compile(r"([_\-])+")
+
 
 def to_pascalcase(s):
     return _UNDERSCORES_OR_DASHES.sub(" ", s).title().replace(" ", "").replace("*", "")

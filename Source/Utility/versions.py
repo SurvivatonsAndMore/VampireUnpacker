@@ -3,7 +3,7 @@ from typing import Final
 
 from Source.Config.config import Config, CfgKey
 
-UNPACKER_VERSION: Final[tuple[int, int, int]] = (1, 0, 1)
+UNPACKER_VERSION: Final[tuple[int, int, int]] = (1, 0, 2)
 
 RIPPER_VERSION_MINIMAL: Final[tuple[int, int, int]] = (2, 0, 0)
 

@@ -359,11 +359,15 @@ class UIBase:
     ###
 
     def get_data_vs_all(self):
-        self._last_loaded_folder = data_sur.dump_all_data(self.progress_bar_set_percent)
+        self._last_loaded_folder, warning_popup = data_sur.dump_all_data(self.progress_bar_set_percent)
+        if warning_popup is not None:
+            self.show_popup(warning_popup)
         data_sur.make_meta_file_folder_structure()
 
     def get_data_vs_merged(self):
-        self._last_loaded_folder = data_sur.dump_merged_data(self.progress_bar_set_percent)
+        self._last_loaded_folder, warning_popup = data_sur.dump_merged_data(self.progress_bar_set_percent)
+        if warning_popup is not None:
+            self.show_popup(warning_popup)
 
     def get_languages_vs_yaml(self):
         self._last_loaded_folder = language_sur.dump_original_i2l(self.progress_bar_set_percent)
