@@ -173,7 +173,6 @@ class UIBase:
         except BasePopup as p:
             self.show_popup(p)
 
-
     def create_version_file(self):
         app_id = None
         while True:
@@ -444,7 +443,7 @@ class UIBase:
         gen = gen_class(selected_dlc, req_gens, progress=self.progress_bar_set_percent)
         self._last_loaded_folder = gen.start_generator(selected_anim_types)
 
-    def get_unified_audio_vs(self):
+    def get_unified_audio_sur(self):
         import Source.Audio.audio_gen_sur as audio_gen
 
         save_types_list = audio_gen.AudioSaveType.get()
@@ -468,7 +467,39 @@ class UIBase:
         else:
             self._last_loaded_folder = llf
 
-    ###
+    def get_unified_audio_announcer(self):
+        import Source.Audio.audio_announcer as audio_announcer
+
+        data_types, use_image_gen = audio_announcer.get_announcer_data_types()
+
+        selected_data = self.check_boxes(
+            data_types, title="Select data types",
+            label=["Select data type which will be used to", "generate announcer audio clips"]
+        )
+
+        if not selected_data:
+            return
+
+        use_image_gen_any = any(
+            map(lambda ab: ab[0] and ab[1], zip(selected_data, use_image_gen)))
+
+        selected_dlc = None
+        if use_image_gen_any:
+            selected_dlc = self.dlc_selector(MetaDataHandler.loaded_game, allow_compound=True)
+
+            if not selected_dlc:
+                return
+
+        llf: Path | None = None
+        for data_type, is_selected in zip(data_types, selected_data):
+            if not is_selected:
+                continue
+
+            llf = audio_announcer.gen_audio_announcer(data_type, selected_dlc, self.progress_bar_set_percent)
+
+        if llf: self._last_loaded_folder = llf.parent
+
+        ###
 
     def get_data_vc_all(self):
         dumpers = data_vc.get_available_dumpers()

@@ -3,7 +3,7 @@ import sys
 
 from Source.Config.config import PROJECT_SETTINGS, Game, DLC, Config
 from Source.Data.meta_data import MetaDataHandler
-from Source.Utility.constants import VERSION_DATA, VAMPIRE_SURVIVORS
+from Source.Utility.constants import VERSION_DATA
 from Source.Utility.unity_parser import UnityDoc
 from Source.Utility.utility import get_parent_path_to, acf_to_json, to_pascalcase
 

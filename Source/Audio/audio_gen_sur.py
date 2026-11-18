@@ -73,7 +73,7 @@ def _get_music_playlists() -> list[dict[str, Any]]:
     return music_playlists
 
 
-def _get_audio_clips_paths() -> set[Path]:
+def get_audio_clips_paths() -> set[Path]:
     def flt(tuple_s_p: tuple[str, Path]):
         _, p = tuple_s_p
         return p.match("*/AudioClip/*")
@@ -145,6 +145,11 @@ class MusicTrack:
         return
 
 
+SONG_NAME_OVERRIDE = {
+    ("BGM_CharacterSelection", 0): "BGM_character selection"
+}
+
+
 def _get_music_track(audio_clips: dict[str, Path], music_data: dict[str, Any], playlist_data) -> MusicTrack:
     code_name = playlist_data['playlistName']
 
@@ -159,7 +164,12 @@ def _get_music_track(audio_clips: dict[str, Path], music_data: dict[str, Any], p
     if None in tags.values():
         tags = {}
 
-    song_name_main = normalize_str(playlist_data['MusicSettings'][0]['songName'])
+    def get_song_name(_code_name: str, _music_setting: dict[str, Any], index: int):
+        _song_name_main = _music_setting['songName']
+        return normalize_str(_song_name_main) if _song_name_main else normalize_str(
+            SONG_NAME_OVERRIDE.get((_code_name, 0), ""))
+
+    song_name_main = get_song_name(code_name, playlist_data['MusicSettings'][0], 0)
 
     is_vs = True
     found_songs = list(filter(lambda k_v: song_name_main + "_" in normalize_str(k_v[0])
@@ -177,8 +187,8 @@ def _get_music_track(audio_clips: dict[str, Path], music_data: dict[str, Any], p
 
     clips = []
     ext = ""
-    for setting in playlist_data['MusicSettings']:
-        song_name = normalize_str(setting['songName'])
+    for i, setting in enumerate(playlist_data['MusicSettings']):
+        song_name = get_song_name(code_name, setting, i)
 
         song_name = song_name_current.replace(song_name_main, song_name)
 
@@ -210,7 +220,7 @@ def gen_music_tracks(
 
     f_path = to_current_game_path(AUDIO_FOLDER)
 
-    save_path = f_path / GENERATED
+    save_path = f_path / GENERATED / "Soundtrack"
 
     music_data = data_module.DataHandler.get_data(music_dlc, data_module.DataType.MUSIC).data()
 
@@ -253,7 +263,7 @@ def gen_music_tracks(
 
     music_playlists = _get_music_playlists()
 
-    audio_clips_path = _get_audio_clips_paths()
+    audio_clips_path = get_audio_clips_paths()
     audio_clips = {normalize_str(ac): ac for ac in audio_clips_path}
 
     total_len = len(music_playlists)

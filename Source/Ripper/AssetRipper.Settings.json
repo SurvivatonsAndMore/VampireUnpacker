@@ -23,6 +23,7 @@
     "ShaderExportMode": 0,
     "SpriteExportMode": 2,
     "TextExportMode": 2,
+    "ExportUnreadableAssets": true,
     "SaveSettingsToDisk": true,
     "LanguageCode": null
   }

@@ -275,11 +275,20 @@ class UITkinter(tk.Tk, UIBase):
         ).grid(row=0, column=3)
 
         #
+        _audio_frame = ttk.Frame(main_frame)
+        _audio_frame.grid(column=0, row=4)
+
         ttk.Button(
-            main_frame,
+            _audio_frame,
             text="Get unified audio",
-            command=self.get_unified_audio_vs
-        ).grid(row=4, column=0)
+            command=self.get_unified_audio_sur
+        ).grid(row=0, column=0)
+
+        ttk.Button(
+            _audio_frame,
+            text="Get unified announcer audio",
+            command=self.get_unified_audio_announcer
+        ).grid(row=0, column=1)
 
     @register_game_layout(Game.VC)
     def set_vc_frame(self):
@@ -376,7 +385,7 @@ class UITkinter(tk.Tk, UIBase):
         ttk.Button(
             main_frame,
             text="Get unified audio",
-            command=self.get_unified_audio_vs
+            command=self.get_unified_audio_sur
         ).grid(row=4, column=0)
 
     @register_game_layout(Game.JJKRS)
